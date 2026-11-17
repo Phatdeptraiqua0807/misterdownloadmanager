@@ -139,13 +139,34 @@ impl Properties {
             .extension()
             .map(|e| e.to_string_lossy().to_ascii_lowercase())
             .unwrap_or_default();
-        icons.paint(ui, IconKey::ExtLarge(ext.clone()), o + vec2(11.0, 11.0));
-        let fit = |ui: &mut Ui, x: f32, base: f32, s: &str| {
-            let (rect, cut) =
-                winui::text_fit(&p, o.x + x, o.y + base, s, LIGHT_TEXT(), o.x + 466.0);
+        let missing = item.is_file_missing();
+        let icon_key = if complete && !missing {
+            IconKey::FileLarge(item.dest.clone())
+        } else {
+            IconKey::ExtLarge(ext.clone())
+        };
+        icons.paint(ui, icon_key, o + vec2(11.0, 11.0));
+        let icon_rect = r(o, 11.0, 11.0, 32.0, 32.0);
+        if complete
+            && !missing
+            && ui
+                .ctx()
+                .pointer_hover_pos()
+                .is_some_and(|pos| icon_rect.contains(pos))
+        {
+            crate::fileicons::show_thumbnail_preview(ui.ctx(), &item.dest, &item.file_name);
+        }
+        let fit = |ui: &mut Ui, x: f32, base: f32, s: &str, color: egui::Color32| {
+            let (rect, cut) = winui::text_fit(&p, o.x + x, o.y + base, s, color, o.x + 466.0);
             winui::copyable(ui, rect, ("props", base as i32), s, cut);
         };
-        fit(ui, 87.0, 31.0, &item.file_name);
+        fit(
+            ui,
+            87.0,
+            31.0,
+            &item.file_name,
+            if missing { winui::ERROR() } else { LIGHT_TEXT() },
+        );
         winui::etched_h(&p, o.x + 11.0, o.y + 50.0, 456.0);
         let size = item.size.map_or_else(String::new, |s| {
             crate::i18n::fmt(
@@ -189,7 +210,12 @@ impl Properties {
                 crate::i18n::t(label),
                 LIGHT_TEXT(),
             );
-            fit(ui, col, base, &value);
+            let value_ink = if missing && label == "Status:" {
+                winui::ERROR()
+            } else {
+                LIGHT_TEXT()
+            };
+            fit(ui, col, base, &value, value_ink);
         }
         // Where its server was (#140): as the last run saw it, or the running one sees it.
         // i18n: label before where a download's server is (its country and round trip)
@@ -216,6 +242,7 @@ impl Properties {
                 col,
                 128.0,
                 crate::i18n::t("not one server (peers, or a helper's)"),
+                LIGHT_TEXT(),
             );
         } else if seen.is_some() {
             crate::whereis::line(
@@ -227,8 +254,14 @@ impl Properties {
                 &format!("props-{}", self.id),
             );
         } else {
-            // i18n: Properties, where a download's server is: not seen yet (it hasn't run)
-            fit(ui, col, 128.0, crate::i18n::t("known once it has run"));
+            fit(
+                ui,
+                col,
+                128.0,
+                // i18n: Properties, where a download's server is: not seen yet (it hasn't run)
+                crate::i18n::t("known once it has run"),
+                LIGHT_TEXT(),
+            );
         }
 
         text(
@@ -333,7 +366,7 @@ impl Properties {
         // A video's page, a file's referer (#795).
         // i18n: the web page is not known
         let page = item.web_page().unwrap_or(crate::i18n::t("Unknown"));
-        fit(ui, 11.0, 272.0, page);
+        fit(ui, 11.0, 272.0, page, LIGHT_TEXT());
         winui::etched_h(&p, o.x + 11.0, o.y + 282.0, 456.0);
         // i18n: HTTP term (sic): the page the download was started from
         text(
@@ -405,7 +438,7 @@ impl Properties {
                 crate::i18n::t("Last try  {last}"),
                 &[("last", &last)],
             );
-            fit(ui, 11.0, 396.0, &last_try);
+            fit(ui, 11.0, 396.0, &last_try, LIGHT_TEXT());
         }
         // The dialog's own error (a bad address) takes the Result line's place while it lasts.
         if let Some(e) = &self.error {

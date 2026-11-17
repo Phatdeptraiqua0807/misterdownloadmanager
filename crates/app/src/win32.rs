@@ -6234,35 +6234,167 @@ unsafe fn dib_rgba(
     bitmap: windows_sys::Win32::Graphics::Gdi::HBITMAP,
     side: i32,
 ) -> Option<Vec<u8>> {
+    // SAFETY: caller ensures `bitmap` is valid with at least `side` × `side` pixels.
+    unsafe { bitmap_rgba(bitmap, side, side) }
+}
+
+/// `w` × `h` pixels of `bitmap`, top-down, as straight RGBA (32 bits per pixel).
+unsafe fn bitmap_rgba(
+    bitmap: windows_sys::Win32::Graphics::Gdi::HBITMAP,
+    w: i32,
+    h: i32,
+) -> Option<Vec<u8>> {
+    if w <= 0 || h <= 0 {
+        return None;
+    }
     unsafe {
         let mut bmi: BITMAPINFO = zeroed();
         bmi.bmiHeader = BITMAPINFOHEADER {
             biSize: size_of::<BITMAPINFOHEADER>() as u32,
-            biWidth: side,
-            biHeight: -side, // top-down
+            biWidth: w,
+            biHeight: -h, // top-down
             biPlanes: 1,
             biBitCount: 32,
             biCompression: BI_RGB,
             ..zeroed()
         };
-        let mut px = vec![0u8; (side * side * 4) as usize];
+        let mut px = vec![0u8; (w as usize) * (h as usize) * 4];
         let dc = GetDC(std::ptr::null_mut());
         let lines = GetDIBits(
             dc,
             bitmap,
             0,
-            side as u32,
+            h as u32,
             px.as_mut_ptr() as *mut c_void,
             &mut bmi,
             DIB_RGB_COLORS,
         );
         ReleaseDC(std::ptr::null_mut(), dc);
-        (lines == side).then(|| {
+        (lines == h).then(|| {
             for c in px.as_chunks_mut::<4>().0 {
                 c.swap(0, 2); // BGRA → RGBA
             }
             px
         })
+    }
+}
+
+/// IID_IShellItemImageFactory, {BCC18B79-BA16-442F-80C4-8A59C30C463B}.
+const IID_SHELL_ITEM_IMAGE_FACTORY: windows_sys::core::GUID = windows_sys::core::GUID {
+    data1: 0xBCC1_8B79,
+    data2: 0xBA16,
+    data3: 0x442F,
+    data4: [0x80, 0xC4, 0x8A, 0x59, 0xC3, 0x0C, 0x46, 0x3B],
+};
+
+/// Return a thumbnail only (never fall back to a generic file-type icon).
+const SIIGBF_THUMBNAILONLY: i32 = 0x0000_0008;
+
+/// Vtable prefix of `IShellItemImageFactory` (`IUnknown` + `GetImage`).
+#[repr(C)]
+struct ShellItemImageFactoryVtbl {
+    _query_interface: usize,
+    _add_ref: usize,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+    get_image: unsafe extern "system" fn(
+        *mut c_void,
+        windows_sys::Win32::Foundation::SIZE,
+        i32,
+        *mut windows_sys::Win32::Graphics::Gdi::HBITMAP,
+    ) -> windows_sys::core::HRESULT,
+}
+
+/// Normalize a path to NUL-terminated UTF-16 without `\\?\` prefix for shell APIs.
+fn shell_path_wide(path: &std::path::Path) -> Option<Vec<u16>> {
+    use std::os::windows::ffi::OsStrExt;
+    let abs = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir().ok()?.join(path)
+    };
+    let mut wide: Vec<u16> = abs
+        .as_os_str()
+        .encode_wide()
+        .map(|u| if u == b'/' as u16 { b'\\' as u16 } else { u })
+        .collect();
+    let unc_prefix: [u16; 8] = [
+        b'\\' as u16,
+        b'\\' as u16,
+        b'?' as u16,
+        b'\\' as u16,
+        b'U' as u16,
+        b'N' as u16,
+        b'C' as u16,
+        b'\\' as u16,
+    ];
+    let verbatim_prefix: [u16; 4] = [b'\\' as u16, b'\\' as u16, b'?' as u16, b'\\' as u16];
+    if wide.starts_with(&unc_prefix) {
+        wide.drain(2..7);
+    } else if wide.starts_with(&verbatim_prefix) {
+        wide.drain(..4);
+    }
+    wide.push(0);
+    Some(wide)
+}
+
+/// Windows Shell thumbnail for `path`, scaled to fit within `max_px` × `max_px` as straight RGBA.
+/// Returns `None` when the file has no thumbnail handler or is unavailable.
+pub fn file_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
+    use windows_sys::Win32::Foundation::SIZE;
+    use windows_sys::Win32::Graphics::Gdi::{BITMAP, GetObjectW};
+    use windows_sys::Win32::UI::Shell::SHCreateItemFromParsingName;
+    static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _held = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    com_on_this_thread();
+    let wide = shell_path_wide(path)?;
+    let side = max_px.clamp(1, 512) as i32;
+    // SAFETY: `wide` is NUL-terminated; `SHCreateItemFromParsingName` writes a COM interface
+    // pointer released via `vtbl.release`; `GetImage` returns an `HBITMAP` freed via `DeleteObject`.
+    unsafe {
+        let mut factory: *mut c_void = std::ptr::null_mut();
+        let hr = SHCreateItemFromParsingName(
+            wide.as_ptr(),
+            std::ptr::null_mut(),
+            &IID_SHELL_ITEM_IMAGE_FACTORY,
+            &mut factory,
+        );
+        if hr < 0 || factory.is_null() {
+            return None;
+        }
+        let vtbl = &**(factory as *const *const ShellItemImageFactoryVtbl);
+        let mut hbmp = std::ptr::null_mut();
+        let hr = (vtbl.get_image)(
+            factory,
+            SIZE { cx: side, cy: side },
+            SIIGBF_THUMBNAILONLY,
+            &mut hbmp,
+        );
+        (vtbl.release)(factory);
+        if hr < 0 || hbmp.is_null() {
+            return None;
+        }
+        let mut bm: BITMAP = zeroed();
+        let got = GetObjectW(
+            hbmp as _,
+            size_of::<BITMAP>() as i32,
+            &mut bm as *mut BITMAP as *mut c_void,
+        ) != 0;
+        let (w, h) = (bm.bmWidth, bm.bmHeight.abs());
+        let mut out = if got && w > 0 && h > 0 && w <= 1024 && h <= 1024 {
+            bitmap_rgba(hbmp, w, h).map(|mut px| {
+                // Opaque 32-bit bitmaps from WIC/video thumbnail handlers leave alpha at 0.
+                if !px.as_chunks::<4>().0.iter().any(|c| c[3] != 0) {
+                    for c in px.as_chunks_mut::<4>().0.iter_mut() {
+                        c[3] = 255;
+                    }
+                }
+                (w as u32, h as u32, px)
+            })
+        } else {
+            None
+        };
+        DeleteObject(hbmp as _);
+        out.take()
     }
 }
 

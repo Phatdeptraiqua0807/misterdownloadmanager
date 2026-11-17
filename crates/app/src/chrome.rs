@@ -62,6 +62,10 @@ pub enum IconKey {
     Ext(String),
     /// 32 × 32 (Download File Info).
     ExtLarge(String),
+    /// A finished file on disk (16 × 16): its thumbnail when it has one, else its type's icon.
+    File(std::path::PathBuf),
+    /// 32 × 32 (File Properties): its thumbnail when it has one, else its type's icon.
+    FileLarge(std::path::PathBuf),
     /// A FamFamFam Silk icon (CC BY 2.5, assets/icons/silk/), by name.
     Silk(&'static str),
     /// The theme icon set's icon for a need (`crate::themeicons`), else this Silk icon.
@@ -112,7 +116,7 @@ impl ShellIcons {
     /// `paint` through `painter`, so the icon keeps to its clip (a list scrolled sideways must
     /// not draw its icons over the pane beside it).
     pub fn paint_in(&mut self, ui: &Ui, painter: &egui::Painter, key: IconKey, min: Pos2) {
-        let side = if matches!(key, IconKey::ExtLarge(_)) {
+        let side = if matches!(key, IconKey::ExtLarge(_) | IconKey::FileLarge(_)) {
             32.0
         } else {
             16.0
@@ -139,6 +143,9 @@ impl ShellIcons {
                     format!("x.{e}")
                 };
                 crate::fileicons::paint(ui, painter, crate::fileicons::Kind::File(&name), rc);
+            }
+            IconKey::File(path) | IconKey::FileLarge(path) => {
+                crate::fileicons::paint_file(ui, painter, path, rc);
             }
         }
     }

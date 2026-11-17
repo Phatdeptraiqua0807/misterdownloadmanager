@@ -587,6 +587,9 @@ pub struct Item {
     /// does ([`Item::holds_place`]). Memory only.
     #[serde(skip)]
     pub(crate) live_copy: bool,
+    /// Set by the background file-existence check when a finished download's file is missing from `dest`.
+    #[serde(skip)]
+    pub file_missing: bool,
 }
 
 /// Adds `more` to a download's `written_files`, each path once, in order. A gallery lists up to
@@ -1140,6 +1143,7 @@ impl Item {
         c.number_at_start = self.number_at_start;
         c.state_here.clone_from(&self.state_here);
         c.live_copy = self.live.is_some() || self.live_copy;
+        c.file_missing = self.file_missing;
         c
     }
 
@@ -1193,6 +1197,7 @@ impl Item {
             written_files: None,
             state_here: None,
             live_copy: false,
+            file_missing: false,
         }
     }
     /// This row's resume state is at its place. `downloaded` can't say: after a crash the list
@@ -1333,6 +1338,8 @@ impl Item {
                     self.downloaded = self.size.unwrap_or(self.downloaded);
                     // Replaced (or kept, when it couldn't be): the file there now is its own.
                     self.replace_file = None;
+                    self.file_missing = false;
+                    self.moved_away = false;
                 }
                 // A video and its subtitles (#68), already marked as downloaded from the web by
                 // its job, before it said it was done (#1103).
@@ -1593,6 +1600,11 @@ impl Item {
         self.torrent.is_none() && self.snap.as_ref().is_some_and(every_byte_in)
     }
 
+    /// Whether this finished download's saved file is missing from `dest` (deleted or moved away).
+    pub fn is_file_missing(&self) -> bool {
+        self.status == Status::Complete && (self.file_missing || self.moved_away)
+    }
+
     pub fn status_text(&self) -> String {
         if let Some(at) = self.at_service() {
             return at;
@@ -1602,6 +1614,10 @@ impl Item {
         }
         if let Some(finishing) = self.finishing(true) {
             return finishing;
+        }
+        if self.is_file_missing() {
+            // i18n: a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
+            return crate::i18n::t("File not found").into();
         }
         match self.status {
             // i18n: a download's status (state it is in, not a command): finished
@@ -2720,5 +2736,26 @@ mod limit_tests {
             limiter_hint(Some(10 * KB), Some(500 * KB)).as_deref(),
             Some("Speed Limiter: 10 KB/sec per download, 500 KB/sec for all")
         );
+    }
+
+    #[test]
+    fn missing_file_status_when_complete_and_absent() {
+        let url = Url::parse("https://example.com/archive.zip").unwrap();
+        let mut item = Item::new(1, url, PathBuf::from("archive.zip"), Category::Compressed);
+        assert!(!item.is_file_missing());
+        item.file_missing = true;
+        assert!(!item.is_file_missing(), "only Complete items report missing");
+
+        item.status = Status::Complete;
+        assert!(item.is_file_missing());
+        assert_eq!(item.status_text(), "File not found");
+
+        item.file_missing = false;
+        assert!(!item.is_file_missing());
+        assert_eq!(item.status_text(), "Complete");
+
+        item.moved_away = true;
+        assert!(item.is_file_missing());
+        assert_eq!(item.status_text(), "File not found");
     }
 }

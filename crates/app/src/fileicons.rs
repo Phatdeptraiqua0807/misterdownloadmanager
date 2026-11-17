@@ -183,18 +183,23 @@ fn to_shown(ctx: &egui::Context, what: &What, px: u32, got: Option<Native>) -> S
     }
 }
 
+/// Premultiply straight RGBA pixels in place.
+fn premultiply(rgba: &mut [u8]) {
+    for c in rgba.as_chunks_mut::<4>().0 {
+        let a = c[3] as u32;
+        for v in &mut c[..3] {
+            *v = ((*v as u32 * a + 127) / 255) as u8;
+        }
+    }
+}
+
 /// `rgba` (`side` square) at `px` square, alpha premultiplied: resized with a triangle filter
 /// (an average of the pixels each covers when smaller), on premultiplied pixels so transparent
 /// edges don't darken.
 pub(crate) fn fit(rgba: &[u8], side: u32, premultiplied: bool, px: u32) -> Vec<u8> {
     let mut pre = rgba.to_vec();
     if !premultiplied {
-        for c in pre.as_chunks_mut::<4>().0 {
-            let a = c[3] as u32;
-            for v in &mut c[..3] {
-                *v = ((*v as u32 * a + 127) / 255) as u8;
-            }
-        }
+        premultiply(&mut pre);
     }
     if side == px {
         return pre;
@@ -205,6 +210,284 @@ pub(crate) fn fit(rgba: &[u8], side: u32, premultiplied: bool, px: u32) -> Vec<u
         }
         None => vec![0; (px * px * 4) as usize],
     }
+}
+
+// ---- file thumbnails ---------------------------------------------------------------------------
+
+/// Cached thumbnail textures for an existing file on disk.
+#[derive(Clone)]
+pub struct Thumbnail {
+    pub small: egui::TextureHandle,
+    pub large: egui::TextureHandle,
+    pub size: [u32; 2],
+}
+
+#[derive(Default)]
+struct ThumbCache {
+    /// `None` while the lookup runs; `Some(None)` when the file has no thumbnail.
+    items: HashMap<std::path::PathBuf, Option<Option<Thumbnail>>>,
+    lookups: Option<Sender<(std::path::PathBuf, u64, egui::Context)>>,
+    generations: HashMap<std::path::PathBuf, u64>,
+    next_gen: u64,
+}
+
+static THUMB_CACHE: LazyLock<Mutex<ThumbCache>> = LazyLock::new(Default::default);
+
+fn thumb_cache() -> std::sync::MutexGuard<'static, ThumbCache> {
+    THUMB_CACHE.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Return the cached thumbnail for `path`, or queue a background lookup on first ask.
+pub fn thumbnail(ctx: &egui::Context, path: &std::path::Path) -> Option<Thumbnail> {
+    let mut c = thumb_cache();
+    if let Some(entry) = c.items.get(path) {
+        return entry.as_ref().and_then(|t| t.clone());
+    }
+    c.next_gen = c.next_gen.wrapping_add(1);
+    let gen = c.next_gen;
+    let key = path.to_path_buf();
+    c.items.insert(key.clone(), None);
+    c.generations.insert(key.clone(), gen);
+    let tx = c.lookups.get_or_insert_with(start_thumb_lookups);
+    let _ = tx.send((key, gen, ctx.clone()));
+    None
+}
+
+/// Drop any cached thumbnail for `path` so the next paint reads it afresh.
+pub fn invalidate_thumbnail(path: &std::path::Path) {
+    let mut c = thumb_cache();
+    c.items.remove(path);
+    c.next_gen = c.next_gen.wrapping_add(1);
+    let gen = c.next_gen;
+    c.generations.insert(path.to_path_buf(), gen);
+}
+
+fn start_thumb_lookups() -> Sender<(std::path::PathBuf, u64, egui::Context)> {
+    let (tx, rx) = channel::<(std::path::PathBuf, u64, egui::Context)>();
+    let spawned = std::thread::Builder::new()
+        .name("file thumbnails".into())
+        .spawn(move || {
+            for (path, gen, ctx) in rx {
+                let got = std::panic::catch_unwind(|| load_thumbnail(&path, 256))
+                    .ok()
+                    .flatten();
+                let thumb = got.and_then(|raw| to_thumbnail(&ctx, &path, raw));
+                let mut c = thumb_cache();
+                if c.generations.get(&path).copied() == Some(gen) {
+                    c.items.insert(path, Some(thumb));
+                    ctx.request_repaint();
+                }
+            }
+        });
+    if spawned.is_err() {
+        return channel().0;
+    }
+    tx
+}
+
+fn fit_rect_size(w: u32, h: u32, max_px: u32) -> (u32, u32) {
+    if w == 0 || h == 0 || (w <= max_px && h <= max_px) {
+        return (w.max(1), h.max(1));
+    }
+    if w >= h {
+        let nh = ((h as u64 * max_px as u64 + (w as u64 / 2)) / w as u64).max(1) as u32;
+        (max_px, nh)
+    } else {
+        let nw = ((w as u64 * max_px as u64 + (h as u64 / 2)) / h as u64).max(1) as u32;
+        (nw, max_px)
+    }
+}
+
+fn load_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
+    if !path.exists() {
+        return None;
+    }
+    #[cfg(windows)]
+    if std::env::var_os("MDM_SYSTEM_ICONS").is_none_or(|v| v != "0")
+        && let Some(got) = crate::win32::file_thumbnail(path, max_px)
+    {
+        return Some(got);
+    }
+    image_thumbnail(path, max_px)
+}
+
+/// Portable image thumbnail decoder for formats supported by the `image` crate (up to 32 MiB).
+pub(crate) fn image_thumbnail(
+    path: &std::path::Path,
+    max_px: u32,
+) -> Option<(u32, u32, Vec<u8>)> {
+    let meta = std::fs::metadata(path).ok()?;
+    if !meta.is_file() || meta.len() > 32 * 1024 * 1024 {
+        return None;
+    }
+    let img = image::ImageReader::open(path)
+        .ok()?
+        .with_guessed_format()
+        .ok()?
+        .decode()
+        .ok()?;
+    let rgba = img.to_rgba8();
+    let (w, h) = rgba.dimensions();
+    if w == 0 || h == 0 {
+        return None;
+    }
+    let (nw, nh) = fit_rect_size(w, h, max_px);
+    let out = if (nw, nh) == (w, h) {
+        rgba.into_raw()
+    } else {
+        image::imageops::resize(&rgba, nw, nh, image::imageops::FilterType::Triangle).into_raw()
+    };
+    Some((nw, nh, out))
+}
+
+fn to_thumbnail(
+    ctx: &egui::Context,
+    path: &std::path::Path,
+    (w, h, mut rgba): (u32, u32, Vec<u8>),
+) -> Option<Thumbnail> {
+    if w == 0 || h == 0 || rgba.len() != (w as usize) * (h as usize) * 4 {
+        return None;
+    }
+    premultiply(&mut rgba);
+    let large_img = egui::ColorImage::from_rgba_premultiplied([w as usize, h as usize], &rgba);
+    let (sw, sh) = fit_rect_size(w, h, 64);
+    let small_img = if (sw, sh) == (w, h) {
+        large_img.clone()
+    } else {
+        let src = image::RgbaImage::from_raw(w, h, rgba)?;
+        let small = image::imageops::resize(&src, sw, sh, image::imageops::FilterType::Triangle);
+        egui::ColorImage::from_rgba_premultiplied([sw as usize, sh as usize], &small.into_raw())
+    };
+    let key = path.display();
+    let small = ctx.load_texture(
+        format!("file-thumb-small-{key}"),
+        small_img,
+        egui::TextureOptions::LINEAR,
+    );
+    let large = ctx.load_texture(
+        format!("file-thumb-large-{key}"),
+        large_img,
+        egui::TextureOptions::LINEAR,
+    );
+    Some(Thumbnail {
+        small,
+        large,
+        size: [w, h],
+    })
+}
+
+// ---- drawing -----------------------------------------------------------------------------------
+
+/// Draw the thumbnail for `path` in `rc` (on screen) when available, else its file-type icon.
+pub fn paint_file(ui: &Ui, painter: &Painter, path: &std::path::Path, rc: Rect) {
+    let ctx = ui.ctx();
+    if let Some(thumb) = thumbnail(ctx, path) {
+        let ppp = ctx.pixels_per_point();
+        let rc = rc.round_to_pixels(ppp);
+        let [tw, th] = thumb.size;
+        let scale = (rc.width() / tw.max(1) as f32).min(rc.height() / th.max(1) as f32);
+        let draw_size = egui::vec2(
+            (tw as f32 * scale).max(1.0),
+            (th as f32 * scale).max(1.0),
+        );
+        let dst = Rect::from_center_size(rc.center(), draw_size).round_to_pixels(ppp);
+        let tex = if rc.width() * ppp > 48.0 {
+            &thumb.large
+        } else {
+            &thumb.small
+        };
+        let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+        painter.image(tex.id(), dst, uv, Color32::WHITE);
+        painter.rect_stroke(
+            dst,
+            0.0,
+            egui::Stroke::new(1.0, Color32::from_black_alpha(40)),
+            egui::StrokeKind::Inside,
+        );
+        return;
+    }
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default();
+    paint(ui, painter, Kind::File(&name), rc);
+}
+
+/// Show a floating thumbnail preview popup near the pointer when `path` has a loaded thumbnail.
+pub fn show_thumbnail_preview(ctx: &egui::Context, path: &std::path::Path, file_name: &str) {
+    let Some(thumb) = thumbnail(ctx, path) else {
+        return;
+    };
+    let Some(pos) = ctx.pointer_hover_pos() else {
+        return;
+    };
+    let [tw, th] = thumb.size;
+    if tw == 0 || th == 0 {
+        return;
+    }
+    let (fw, fh) = (tw as f32, th as f32);
+    let max_dim = fw.max(fh);
+    let scale = max_dim.clamp(48.0, 160.0) / max_dim;
+    let img_w = (fw * scale).round().max(1.0);
+    let img_h = (fh * scale).round().max(1.0);
+    let pad = 8.0;
+    let card_w = img_w.max(120.0) + pad * 2.0;
+    let card_h = pad + img_h + 6.0 + 30.0 + pad;
+    let screen = ctx.content_rect();
+    let x = (pos.x + 14.0)
+        .min(screen.right() - card_w - 6.0)
+        .max(screen.left() + 4.0);
+    let y = (pos.y + 14.0)
+        .min(screen.bottom() - card_h - 6.0)
+        .max(screen.top() + 4.0);
+    egui::Area::new(egui::Id::unique("mdm-thumb-preview"))
+        .order(egui::Order::Tooltip)
+        .interactable(false)
+        .fixed_pos(pos2(x.round(), y.round()))
+        .show(ctx, |ui| {
+            let (rect, _) =
+                ui.allocate_exact_size(egui::vec2(card_w, card_h), egui::Sense::hover());
+            let _surface = crate::winui::Surface::enter(rect.min.x, rect.max.x);
+            let p = ui.painter();
+            crate::chrome::popup_surface(p, rect);
+            let img_rect = Rect::from_center_size(
+                pos2(rect.center().x, rect.top() + pad + img_h / 2.0),
+                egui::vec2(img_w, img_h),
+            );
+            let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+            p.image(thumb.large.id(), img_rect, uv, Color32::WHITE);
+            p.rect_stroke(
+                img_rect,
+                0.0,
+                egui::Stroke::new(1.0, Color32::from_black_alpha(50)),
+                egui::StrokeKind::Inside,
+            );
+            let font = crate::winui::tahoma();
+            let text_room = card_w - pad * 2.0;
+            let name = crate::winui::ellipsize(
+                p,
+                &font,
+                &crate::i18n::isolate(file_name),
+                text_room,
+            );
+            crate::winui::text_font(
+                p,
+                font.clone(),
+                rect.left() + pad,
+                rect.top() + pad + img_h + 16.0,
+                &name,
+                crate::winui::TEXT(),
+            );
+            let dims = crate::i18n::ltr(&format!("{tw} × {th}"));
+            crate::winui::text_font(
+                p,
+                font,
+                rect.left() + pad,
+                rect.top() + pad + img_h + 30.0,
+                &dims,
+                crate::winui::MUTED(),
+            );
+        });
 }
 
 // ---- drawing -----------------------------------------------------------------------------------
@@ -557,5 +840,41 @@ mod tests {
         if !missing.is_empty() || !small.is_empty() {
             eprintln!("missing: {missing:?}; smaller than asked: {small:?}");
         }
+    }
+
+    #[test]
+    fn thumbnail_loads_png_and_caches_small_and_large_textures() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("photo.png");
+        let mut img = image::RgbaImage::new(120, 80);
+        for p in img.pixels_mut() {
+            *p = image::Rgba([40, 120, 200, 255]);
+        }
+        img.save(&path).unwrap();
+
+        // Portable decoder produces scaled dimensions and RGBA pixels.
+        let (w, h, rgba) = image_thumbnail(&path, 60).unwrap();
+        assert_eq!((w, h), (60, 40));
+        assert_eq!(rgba.len(), 60 * 40 * 4);
+
+        // Background cache loads and caches both small and large textures.
+        let ctx = egui::Context::default();
+        assert!(thumbnail(&ctx, &path).is_none(), "queued on first ask");
+        let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let thumb = loop {
+            if let Some(t) = thumbnail(&ctx, &path) {
+                break t;
+            }
+            assert!(
+                std::time::Instant::now() < until,
+                "thumbnail never arrived"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        };
+        assert_eq!(thumb.small.size(), [64, 43]);
+        assert!(thumb.large.size()[0] >= 120 && thumb.large.size()[1] >= 80);
+
+        invalidate_thumbnail(&path);
+        assert!(thumbnail(&ctx, &path).is_none(), "cleared by invalidate");
     }
 }

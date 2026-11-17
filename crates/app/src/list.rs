@@ -161,7 +161,7 @@ pub fn filter_values(col: usize) -> Option<&'static [&'static str]> {
         SOURCE => Some(&["Web", "Torrent"]),
         1 => Some(&["In a queue", "Not in a queue"]),
         // i18n: a download's status (state it is in, not a command)
-        3 => Some(&["Downloading", "Stopped", "Waiting", "Complete", "Error"]),
+        3 => Some(&["Downloading", "Stopped", "Waiting", "Complete", "Error", "File not found"]),
         _ => None,
     }
 }
@@ -937,6 +937,7 @@ pub fn show(
     let visible = (body.height() / row_h()).ceil() as usize + 1;
     let last_right = cols.last().map_or(cl, |s| s.2);
     let mut cut_under_pointer = None;
+    let mut thumb_under_pointer: Option<(std::path::PathBuf, String)> = None;
     let keys_in_use = winui::keyboard_in_use(ui.ctx());
     // A screen reader's row: the name, then Status and Size, selected or not, its place among all
     // the rows, where it is (out of view: above or below the list).
@@ -1040,10 +1041,16 @@ pub fn show(
                 );
             }
             for (c, x0, x1) in &cols {
-                // The file-type icon sits in the File Name column, wherever it is.
+                let cell = Rect::from_min_max(pos2(*x0, top), pos2(*x1 - 1.0, top + row_h()));
+                let clip = bp.with_clip_rect(screen(cell.intersect(body)));
+                // The file-type icon sits in the File Name column, wherever it is;
+                // a colored status icon sits at the left of the Status column.
                 let tx = if *c == 0 {
                     icons.paint_in(ui, &bp, row.icon.clone(), pos2(x0 + 4.0, top));
                     x0 + 22.0
+                } else if *c == STATUS {
+                    paint_status_icon(&clip, row.status_group, pos2(x0 + 4.0, top));
+                    x0 + 20.0
                 } else {
                     x0 + 6.0
                 };
@@ -1055,10 +1062,9 @@ pub fn show(
                         pos2(x0 + 2.0, top),
                     );
                 }
-                let cell = Rect::from_min_max(pos2(*x0, top), pos2(*x1 - 1.0, top + row_h()));
                 if *c == SOURCE {
                     let cut = chip(
-                        &bp.with_clip_rect(screen(cell.intersect(body))),
+                        &clip,
                         &font,
                         (*x0, *x1),
                         top,
@@ -1082,6 +1088,11 @@ pub fn show(
                     .map(english)
                     .is_some_and(|h| cell.contains(h))
                 {
+                    if *c == 0
+                        && let IconKey::File(path) = &row.icon
+                    {
+                        thumb_under_pointer = Some((path.clone(), row.cells[0].clone()));
+                    }
                     let tip = if *c == 3 {
                         let events = status_tip(idx);
                         match &row.status_whole {
@@ -1100,9 +1111,11 @@ pub fn show(
                         cut_under_pointer = Some(row.cells[*c].clone());
                     }
                 }
-                let clip = bp.with_clip_rect(screen(cell.intersect(body)));
-                // A failed download's Status and Description (the reason) in the error colour.
-                let failed = row.status_group == "Error" && (*c == 3 || *c == 7);
+                // A failed download's Status and Description (the reason), or a missing finished
+                // file's File Name and Status, in the error colour.
+                let missing = row.status_group == "File not found";
+                let failed = (row.status_group == "Error" && (*c == 3 || *c == 7))
+                    || (missing && (*c == 0 || *c == 3));
                 let ink = if sel {
                     winui::SELECTION_TEXT()
                 } else if failed {
@@ -1132,7 +1145,15 @@ pub fn show(
             .map_or(resp.id, row_id);
         winui::keys_with(ui.ctx(), item);
     }
-    if let Some(full) = cut_under_pointer {
+    let showing_thumb = if let Some((path, name)) = thumb_under_pointer
+        && crate::fileicons::thumbnail(ui.ctx(), &path).is_some()
+    {
+        crate::fileicons::show_thumbnail_preview(ui.ctx(), &path, &name);
+        true
+    } else {
+        false
+    };
+    if !showing_thumb && let Some(full) = cut_under_pointer {
         // At the pointer: the list is one widget, and a tip placed by it showed under its
         // bottom edge, far from the row.
         resp.clone().on_hover_text_at_pointer(full);
@@ -1369,7 +1390,13 @@ fn fit_width(p: &egui::Painter, font: &egui::FontId, col: usize, rows: &[Row]) -
     let measure = |s: &str| winui::text_width_font(p, font.clone(), s);
     // The title, with room for the sort arrow and the filter funnel.
     let title = measure(crate::i18n::tc("column", TITLES[col])) + 6.0 + 24.0;
-    let lead = if col == 0 { 22.0 } else { 6.0 };
+    let lead = if col == 0 {
+        22.0
+    } else if col == STATUS {
+        20.0
+    } else {
+        6.0
+    };
     let cells = rows
         .iter()
         .map(|r| lead + measure(&cell_text(col, crate::i18n::t(&r.cells[col]))) + 8.0)
@@ -1480,6 +1507,58 @@ fn chip(
         crate::theme::colors().chip_text,
     );
     label != full
+}
+
+/// Paint a colored 12 × 12 status icon at English point `min` (left edge of the Status cell).
+fn paint_status_icon(p: &egui::Painter, status_group: &str, min: Pos2) {
+    let top = min.y + ((row_h() - 12.0) / 2.0).floor();
+    let rc = winui::rect(Rect::from_min_size(
+        pos2(min.x, top),
+        egui::vec2(12.0, 12.0),
+    ));
+    let c = rc.center();
+    let r = 5.5;
+    let fill = match status_group {
+        "Complete" => Color32::from_rgb(0x2e, 0x9d, 0x52),
+        "Downloading" => Color32::from_rgb(0x00, 0x78, 0xd4),
+        "Stopped" => Color32::from_rgb(0xd9, 0x82, 0x14),
+        "Waiting" => Color32::from_rgb(0x5b, 0x6f, 0xd6),
+        "Error" => Color32::from_rgb(0xc4, 0x2b, 0x1c),
+        "File not found" => Color32::from_rgb(0xd9, 0x2b, 0x2b),
+        _ => return,
+    };
+    let fg = Color32::WHITE;
+    p.circle_filled(c, r, fill);
+    let stroke = egui::Stroke::new(1.5, fg);
+    match status_group {
+        "Complete" => {
+            p.line_segment([c + egui::vec2(-2.6, 0.2), c + egui::vec2(-0.6, 2.2)], stroke);
+            p.line_segment([c + egui::vec2(-0.6, 2.2), c + egui::vec2(2.8, -2.0)], stroke);
+        }
+        "Downloading" => {
+            p.line_segment([c + egui::vec2(0.0, -2.8), c + egui::vec2(0.0, 2.6)], stroke);
+            p.line_segment([c + egui::vec2(-2.4, 0.4), c + egui::vec2(0.0, 2.6)], stroke);
+            p.line_segment([c + egui::vec2(2.4, 0.4), c + egui::vec2(0.0, 2.6)], stroke);
+        }
+        "Stopped" => {
+            p.line_segment([c + egui::vec2(-1.6, -2.4), c + egui::vec2(-1.6, 2.4)], stroke);
+            p.line_segment([c + egui::vec2(1.6, -2.4), c + egui::vec2(1.6, 2.4)], stroke);
+        }
+        "Waiting" => {
+            let thin = egui::Stroke::new(1.3, fg);
+            p.line_segment([c, c + egui::vec2(0.0, -2.8)], thin);
+            p.line_segment([c, c + egui::vec2(2.4, 0.8)], thin);
+        }
+        "Error" => {
+            p.line_segment([c + egui::vec2(-2.2, -2.2), c + egui::vec2(2.2, 2.2)], stroke);
+            p.line_segment([c + egui::vec2(2.2, -2.2), c + egui::vec2(-2.2, 2.2)], stroke);
+        }
+        "File not found" => {
+            p.line_segment([c + egui::vec2(0.0, -2.8), c + egui::vec2(0.0, 0.6)], stroke);
+            p.circle_filled(c + egui::vec2(0.0, 2.5), 0.9, fg);
+        }
+        _ => {}
+    }
 }
 
 /// Where a column's funnel sits in its header: at the right, left of the sort chevron.
@@ -1820,19 +1899,24 @@ mod tests {
             row("Web", "Complete", "Setup.EXE", false),
             row("Torrent", "Downloading", "debian.iso", true),
             row("Web", "Error", "notes.pdf", false),
+            row("Web", "File not found", "photo.png", false),
         ];
         let shown = |st: &ListState| rows.iter().filter(|r| matches(st, r)).count();
-        assert_eq!(shown(&st), 3);
+        assert_eq!(shown(&st), 4);
         st.filters[SOURCE] = Some(Filter::Values(vec!["Torrent"]));
         assert_eq!(shown(&st), 1);
         st.filters[SOURCE] = None;
         st.filters[3] = Some(Filter::Values(vec!["Complete", "Error"]));
         assert_eq!(shown(&st), 2);
+        st.filters[3] = Some(Filter::Values(vec!["File not found"]));
+        assert_eq!(shown(&st), 1);
+        st.filters[3] = Some(Filter::Values(vec!["Complete", "Error"]));
         st.filters[0] = Some(Filter::Text("setup".into()));
         assert_eq!(shown(&st), 1, "case-insensitive, combined with the others");
         st.filters = vec![None; COLS];
         st.filters[1] = Some(Filter::Values(vec!["In a queue"]));
         assert_eq!(shown(&st), 1);
+        assert!(filter_values(STATUS).unwrap().contains(&"File not found"));
     }
 
     /// The slots are fixed, so a title inserted in the middle of [`TITLES`] would name the wrong

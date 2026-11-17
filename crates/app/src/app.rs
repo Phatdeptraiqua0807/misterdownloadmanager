@@ -725,6 +725,9 @@ fn take_place(item: &mut Item, target: PathBuf) {
     }
     item.dest = target;
     item.moved_away = false;
+    item.file_missing = false;
+    crate::fileicons::invalidate_thumbnail(&old_dest);
+    crate::fileicons::invalidate_thumbnail(&item.dest);
 }
 
 /// A finished download's rename on completion (#655), on a thread other than the window's
@@ -1297,6 +1300,8 @@ pub struct App {
     gone_check: GoneCheck,
     /// A look's answer while the adds that waited for it are checked again: (row, place, gone).
     gone_known: Option<(u64, PathBuf, bool)>,
+    /// Background check of whether finished downloads' files still exist on disk.
+    missing_check: Option<std::sync::mpsc::Receiver<Vec<(u64, PathBuf, bool)>>>,
     /// The unfinished downloads' resume states, read beside the window at start
     /// (`read_resume_states`).
     state_reads: crate::resumeread::StateReads,
@@ -1906,6 +1911,7 @@ impl App {
             std::sync::Arc::new(crate::resumeread::from_disk),
             move || repaint.request_repaint(),
         );
+        app.check_missing_files(ctx);
         app.lang_picker = ask_language.then(|| crate::langpick::Picker::new(true, None));
         app.remote = remote;
         // Click'n'Load (#37): off unless Options → Archives and Link grabber turned it on.
@@ -2046,6 +2052,7 @@ impl App {
                 model::finished_file_gone(Status::Complete, dest)
             }),
             gone_known: None,
+            missing_check: None,
             state_reads: Default::default(),
             video_places: crate::videoplace::VideoPlaces::new(std::sync::Arc::new(video_place)),
             queue_pick: None,
@@ -2394,11 +2401,17 @@ impl App {
                 // i18n: a download's status (state it is in, not a command): waiting in a queue for its turn
                 Status::Queued => "Waiting",
                 // i18n: a download's status (state it is in, not a command): finished, the whole file is there
-                Status::Complete => "Complete",
+                Status::Complete if !it.is_file_missing() => "Complete",
+                // i18n: a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
+                Status::Complete => "File not found",
                 // i18n: a download's status (state it is in, not a command): it failed
                 Status::Error => "Error",
             },
-            icon: file_icon(&it.file_name),
+            icon: if it.status == Status::Complete && !it.is_file_missing() {
+                IconKey::File(it.dest.clone())
+            } else {
+                file_icon(&it.file_name)
+            },
             queued: queued.contains(&it.id),
             cells: [
                 it.file_name.clone(),
@@ -8018,6 +8031,8 @@ impl App {
                     Status::Complete => {
                         // Downloaded again: its file is where MDM saved it.
                         i.moved_away = false;
+                        i.file_missing = false;
+                        crate::fileicons::invalidate_thumbnail(&i.dest);
                         finished.push(i.id);
                     }
                     Status::Error => failed.push(i.id),
@@ -10125,6 +10140,67 @@ impl App {
                 self.duplicate_again(pending, ctx);
             }
             self.gone_known = None;
+        }
+    }
+
+    /// Check off the UI thread whether finished downloads' files are still at `item.dest`.
+    fn check_missing_files(&mut self, ctx: &egui::Context) {
+        if self.missing_check.is_some() {
+            return;
+        }
+        let targets: Vec<(u64, PathBuf)> = self
+            .items
+            .iter()
+            .filter(|i| i.status == Status::Complete && i.live.is_none())
+            .map(|i| (i.id, i.dest.clone()))
+            .collect();
+        if targets.is_empty() {
+            return;
+        }
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.missing_check = Some(rx);
+        let repaint = ctx.clone();
+        crate::launch::spawn("check files", move || {
+            let results: Vec<(u64, PathBuf, bool)> = targets
+                .into_iter()
+                .map(|(id, dest)| {
+                    let missing = !dest.exists();
+                    (id, dest, missing)
+                })
+                .collect();
+            let _ = tx.send(results);
+            repaint.request_repaint();
+        });
+    }
+
+    /// Apply completed background file-existence check results to finished items.
+    fn apply_missing_files(&mut self, ctx: &egui::Context) {
+        let Some(rx) = &self.missing_check else {
+            return;
+        };
+        match rx.try_recv() {
+            Ok(results) => {
+                self.missing_check = None;
+                let mut changed = false;
+                for (id, dest, missing) in results {
+                    if let Some(it) = self.items.iter_mut().find(|i| i.id == id && i.dest == dest)
+                        && it.file_missing != missing
+                    {
+                        it.file_missing = missing;
+                        if !missing {
+                            crate::fileicons::invalidate_thumbnail(&dest);
+                        }
+                        changed = true;
+                    }
+                }
+                if changed {
+                    ctx.request_repaint();
+                }
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => {}
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                self.missing_check = None;
+            }
         }
     }
 
@@ -12270,6 +12346,7 @@ impl App {
         self.apply_state_reads();
         self.apply_video_places();
         self.apply_gone_looks(ctx);
+        self.apply_missing_files(ctx);
         self.poll(ctx);
         crate::crash::step(crate::crash::Step::RemoteTorrents);
         self.poll_remote_torrents();
@@ -12312,6 +12389,9 @@ impl App {
             );
             crate::crash::step(crate::crash::Step::Torrents);
             self.torrent_tick();
+            if !self.headless {
+                self.check_missing_files(ctx);
+            }
             // Minimized, the windows these open (Download complete, a limit's notice, Download
             // File Info for a copied link, an update) are made by a pass of the main window's
             // UI, which egui runs then only when asked: every 2 s, as the clock repaints.
@@ -15281,5 +15361,35 @@ mod start_disk_tests {
             Some(&a),
             "the finished file last"
         );
+    }
+
+    #[test]
+    fn finished_files_deleted_from_disk_are_marked_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let present = dir.path().join("present.png");
+        let deleted = dir.path().join("deleted.bin");
+        std::fs::write(&present, b"ok").unwrap();
+        let mut app = app_with(vec![
+            row(1, present.clone(), Status::Complete),
+            row(2, deleted.clone(), Status::Complete),
+        ]);
+        let ctx = egui::Context::default();
+        app.check_missing_files(&ctx);
+        until(
+            &mut app,
+            |app| app.apply_missing_files(&egui::Context::default()),
+            |app| app.missing_check.is_none(),
+        );
+        assert!(!get(&app, 1).is_file_missing());
+        assert!(get(&app, 2).is_file_missing());
+
+        let queued = std::collections::HashSet::new();
+        let r1 = app.row(get(&app, 1), &queued, 0);
+        let r2 = app.row(get(&app, 2), &queued, 0);
+        assert_eq!(r1.status_group, "Complete");
+        assert!(matches!(r1.icon, IconKey::File(ref p) if p == &present));
+        assert_eq!(r2.status_group, "File not found");
+        assert_eq!(r2.cells[list::STATUS], "File not found");
+        assert!(matches!(r2.icon, IconKey::Ext(_)));
     }
 }
