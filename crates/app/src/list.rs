@@ -155,6 +155,7 @@ pub enum Filter {
 }
 
 /// The values a column filters by, for columns that have a few (None: a text search).
+#[rustfmt::skip]
 pub fn filter_values(col: usize) -> Option<&'static [&'static str]> {
     match col {
         // i18n: where a download comes from: Web (web or FTP server) or Torrent (BitTorrent)
@@ -1063,13 +1064,7 @@ pub fn show(
                     );
                 }
                 if *c == SOURCE {
-                    let cut = chip(
-                        &clip,
-                        &font,
-                        (*x0, *x1),
-                        top,
-                        &row.cells[*c],
-                    );
+                    let cut = chip(&clip, &font, (*x0, *x1), top, &row.cells[*c]);
                     let hovered = resp
                         .hover_pos()
                         .map(english)
@@ -1532,17 +1527,35 @@ fn paint_status_icon(p: &egui::Painter, status_group: &str, min: Pos2) {
     let stroke = egui::Stroke::new(1.5, fg);
     match status_group {
         "Complete" => {
-            p.line_segment([c + egui::vec2(-2.6, 0.2), c + egui::vec2(-0.6, 2.2)], stroke);
-            p.line_segment([c + egui::vec2(-0.6, 2.2), c + egui::vec2(2.8, -2.0)], stroke);
+            p.line_segment(
+                [c + egui::vec2(-2.6, 0.2), c + egui::vec2(-0.6, 2.2)],
+                stroke,
+            );
+            p.line_segment(
+                [c + egui::vec2(-0.6, 2.2), c + egui::vec2(2.8, -2.0)],
+                stroke,
+            );
         }
         "Downloading" => {
-            p.line_segment([c + egui::vec2(0.0, -2.8), c + egui::vec2(0.0, 2.6)], stroke);
-            p.line_segment([c + egui::vec2(-2.4, 0.4), c + egui::vec2(0.0, 2.6)], stroke);
+            p.line_segment(
+                [c + egui::vec2(0.0, -2.8), c + egui::vec2(0.0, 2.6)],
+                stroke,
+            );
+            p.line_segment(
+                [c + egui::vec2(-2.4, 0.4), c + egui::vec2(0.0, 2.6)],
+                stroke,
+            );
             p.line_segment([c + egui::vec2(2.4, 0.4), c + egui::vec2(0.0, 2.6)], stroke);
         }
         "Stopped" => {
-            p.line_segment([c + egui::vec2(-1.6, -2.4), c + egui::vec2(-1.6, 2.4)], stroke);
-            p.line_segment([c + egui::vec2(1.6, -2.4), c + egui::vec2(1.6, 2.4)], stroke);
+            p.line_segment(
+                [c + egui::vec2(-1.6, -2.4), c + egui::vec2(-1.6, 2.4)],
+                stroke,
+            );
+            p.line_segment(
+                [c + egui::vec2(1.6, -2.4), c + egui::vec2(1.6, 2.4)],
+                stroke,
+            );
         }
         "Waiting" => {
             let thin = egui::Stroke::new(1.3, fg);
@@ -1550,11 +1563,20 @@ fn paint_status_icon(p: &egui::Painter, status_group: &str, min: Pos2) {
             p.line_segment([c, c + egui::vec2(2.4, 0.8)], thin);
         }
         "Error" => {
-            p.line_segment([c + egui::vec2(-2.2, -2.2), c + egui::vec2(2.2, 2.2)], stroke);
-            p.line_segment([c + egui::vec2(2.2, -2.2), c + egui::vec2(-2.2, 2.2)], stroke);
+            p.line_segment(
+                [c + egui::vec2(-2.2, -2.2), c + egui::vec2(2.2, 2.2)],
+                stroke,
+            );
+            p.line_segment(
+                [c + egui::vec2(2.2, -2.2), c + egui::vec2(-2.2, 2.2)],
+                stroke,
+            );
         }
         "File not found" => {
-            p.line_segment([c + egui::vec2(0.0, -2.8), c + egui::vec2(0.0, 0.6)], stroke);
+            p.line_segment(
+                [c + egui::vec2(0.0, -2.8), c + egui::vec2(0.0, 0.6)],
+                stroke,
+            );
             p.circle_filled(c + egui::vec2(0.0, 2.5), 0.9, fg);
         }
         _ => {}

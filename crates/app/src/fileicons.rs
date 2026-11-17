@@ -244,12 +244,12 @@ pub fn thumbnail(ctx: &egui::Context, path: &std::path::Path) -> Option<Thumbnai
         return entry.as_ref().and_then(|t| t.clone());
     }
     c.next_gen = c.next_gen.wrapping_add(1);
-    let gen = c.next_gen;
+    let generation = c.next_gen;
     let key = path.to_path_buf();
     c.items.insert(key.clone(), None);
-    c.generations.insert(key.clone(), gen);
+    c.generations.insert(key.clone(), generation);
     let tx = c.lookups.get_or_insert_with(start_thumb_lookups);
-    let _ = tx.send((key, gen, ctx.clone()));
+    let _ = tx.send((key, generation, ctx.clone()));
     None
 }
 
@@ -258,8 +258,8 @@ pub fn invalidate_thumbnail(path: &std::path::Path) {
     let mut c = thumb_cache();
     c.items.remove(path);
     c.next_gen = c.next_gen.wrapping_add(1);
-    let gen = c.next_gen;
-    c.generations.insert(path.to_path_buf(), gen);
+    let generation = c.next_gen;
+    c.generations.insert(path.to_path_buf(), generation);
 }
 
 fn start_thumb_lookups() -> Sender<(std::path::PathBuf, u64, egui::Context)> {
@@ -267,13 +267,13 @@ fn start_thumb_lookups() -> Sender<(std::path::PathBuf, u64, egui::Context)> {
     let spawned = std::thread::Builder::new()
         .name("file thumbnails".into())
         .spawn(move || {
-            for (path, gen, ctx) in rx {
+            for (path, generation, ctx) in rx {
                 let got = std::panic::catch_unwind(|| load_thumbnail(&path, 256))
                     .ok()
                     .flatten();
                 let thumb = got.and_then(|raw| to_thumbnail(&ctx, &path, raw));
                 let mut c = thumb_cache();
-                if c.generations.get(&path).copied() == Some(gen) {
+                if c.generations.get(&path).copied() == Some(generation) {
                     c.items.insert(path, Some(thumb));
                     ctx.request_repaint();
                 }
@@ -312,10 +312,7 @@ fn load_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<
 }
 
 /// Portable image thumbnail decoder for formats supported by the `image` crate (up to 32 MiB).
-pub(crate) fn image_thumbnail(
-    path: &std::path::Path,
-    max_px: u32,
-) -> Option<(u32, u32, Vec<u8>)> {
+pub(crate) fn image_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
     let meta = std::fs::metadata(path).ok()?;
     if !meta.is_file() || meta.len() > 32 * 1024 * 1024 {
         return None;
@@ -386,10 +383,7 @@ pub fn paint_file(ui: &Ui, painter: &Painter, path: &std::path::Path, rc: Rect) 
         let rc = rc.round_to_pixels(ppp);
         let [tw, th] = thumb.size;
         let scale = (rc.width() / tw.max(1) as f32).min(rc.height() / th.max(1) as f32);
-        let draw_size = egui::vec2(
-            (tw as f32 * scale).max(1.0),
-            (th as f32 * scale).max(1.0),
-        );
+        let draw_size = egui::vec2((tw as f32 * scale).max(1.0), (th as f32 * scale).max(1.0));
         let dst = Rect::from_center_size(rc.center(), draw_size).round_to_pixels(ppp);
         let tex = if rc.width() * ppp > 48.0 {
             &thumb.large
@@ -464,12 +458,8 @@ pub fn show_thumbnail_preview(ctx: &egui::Context, path: &std::path::Path, file_
             );
             let font = crate::winui::tahoma();
             let text_room = card_w - pad * 2.0;
-            let name = crate::winui::ellipsize(
-                p,
-                &font,
-                &crate::i18n::isolate(file_name),
-                text_room,
-            );
+            let name =
+                crate::winui::ellipsize(p, &font, &crate::i18n::isolate(file_name), text_room);
             crate::winui::text_font(
                 p,
                 font.clone(),
@@ -865,10 +855,7 @@ mod tests {
             if let Some(t) = thumbnail(&ctx, &path) {
                 break t;
             }
-            assert!(
-                std::time::Instant::now() < until,
-                "thumbnail never arrived"
-            );
+            assert!(std::time::Instant::now() < until, "thumbnail never arrived");
             std::thread::sleep(std::time::Duration::from_millis(10));
         };
         assert_eq!(thumb.small.size(), [64, 43]);

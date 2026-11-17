@@ -165,7 +165,11 @@ impl Properties {
             87.0,
             31.0,
             &item.file_name,
-            if missing { winui::ERROR() } else { LIGHT_TEXT() },
+            if missing {
+                winui::ERROR()
+            } else {
+                LIGHT_TEXT()
+            },
         );
         winui::etched_h(&p, o.x + 11.0, o.y + 50.0, 456.0);
         let size = item.size.map_or_else(String::new, |s| {

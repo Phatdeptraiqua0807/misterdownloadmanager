@@ -2651,7 +2651,7 @@ mod speed_tests {
 /// Which speed limit a download's Transfer rate names, and how (#1191).
 #[cfg(test)]
 mod limit_tests {
-    use super::{Limit, limit_rate, limiter_hint};
+    use super::{Category, Item, Limit, PathBuf, Status, Url, limit_rate, limiter_hint};
 
     const KB: u64 = 1024;
 
@@ -2744,7 +2744,10 @@ mod limit_tests {
         let mut item = Item::new(1, url, PathBuf::from("archive.zip"), Category::Compressed);
         assert!(!item.is_file_missing());
         item.file_missing = true;
-        assert!(!item.is_file_missing(), "only Complete items report missing");
+        assert!(
+            !item.is_file_missing(),
+            "only Complete items report missing"
+        );
 
         item.status = Status::Complete;
         assert!(item.is_file_missing());
