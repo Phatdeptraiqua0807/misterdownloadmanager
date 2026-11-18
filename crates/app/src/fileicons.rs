@@ -771,10 +771,22 @@ fn to_thumbnail(
 
 // ---- drawing -----------------------------------------------------------------------------------
 
-/// Draw the thumbnail for `path` in `rc` (on screen) when available, else its file-type icon.
+fn is_pe_binary(path: &std::path::Path) -> bool {
+    path.extension().and_then(|e| e.to_str()).is_some_and(|e| {
+        matches!(
+            e.to_ascii_lowercase().as_str(),
+            "exe" | "dll" | "scr" | "ocx" | "cpl"
+        )
+    })
+}
+
+/// Draw the row/dialog icon for `path` in `rc` (on screen): system file-type icons (plus embedded
+/// application icons for `.exe`/`.dll`) when enabled, or simple theme icons otherwise. Content
+/// thumbnails (images, audio cover art, archive previews) are reserved for the hover preview.
 pub fn paint_file(ui: &Ui, painter: &Painter, path: &std::path::Path, rc: Rect) {
     let ctx = ui.ctx();
     if thumbnails_enabled()
+        && is_pe_binary(path)
         && let Some(thumb) = thumbnail(ctx, path)
     {
         let ppp = ctx.pixels_per_point();
@@ -790,12 +802,6 @@ pub fn paint_file(ui: &Ui, painter: &Painter, path: &std::path::Path, rc: Rect) 
         };
         let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
         painter.image(tex.id(), dst, uv, Color32::WHITE);
-        painter.rect_stroke(
-            dst,
-            0.0,
-            egui::Stroke::new(1.0, crate::theme::colors().flag_edge),
-            egui::StrokeKind::Inside,
-        );
         return;
     }
     let name = path
@@ -849,12 +855,14 @@ pub fn show_thumbnail_preview(ui: &Ui, path: &std::path::Path, file_name: &str) 
                 );
                 let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
                 p.image(thumb.large.id(), img_rect, uv, Color32::WHITE);
-                p.rect_stroke(
-                    img_rect,
-                    0.0,
-                    egui::Stroke::new(1.0, edge),
-                    egui::StrokeKind::Inside,
-                );
+                if !is_pe_binary(path) {
+                    p.rect_stroke(
+                        img_rect,
+                        0.0,
+                        egui::Stroke::new(1.0, edge),
+                        egui::StrokeKind::Inside,
+                    );
+                }
                 let font = crate::winui::tahoma();
                 let text_room = card_w - pad * 2.0;
                 let name =
