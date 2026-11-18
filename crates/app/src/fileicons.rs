@@ -696,7 +696,10 @@ pub(crate) fn zip_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32,
         if entry.is_dir() || entry.size() == 0 || entry.size() > 8 * 1024 * 1024 {
             continue;
         }
-        let lower = entry.name().to_ascii_lowercase();
+        let Ok(name) = entry.name() else {
+            continue;
+        };
+        let lower = name.to_ascii_lowercase();
         let is_img = [
             ".png", ".jpg", ".jpeg", ".bmp", ".ico", ".tif", ".tiff", ".tga", ".pnm",
         ]

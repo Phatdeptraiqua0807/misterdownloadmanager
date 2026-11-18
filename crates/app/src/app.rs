@@ -8681,22 +8681,6 @@ impl App {
         MenuEntry::Sub("File &icons", true, vec![a, b])
     }
 
-    /// View → File icons: choose between per-file thumbnails / embedded icons and simple icons.
-    fn file_icons_menu(&self) -> MenuEntry<Cmd> {
-        let on = self.settings.file_thumbnails;
-        // i18n: View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
-        let a = MenuEntry::Radio(
-            "&Thumbnails and file icons",
-            Cmd::FileThumbnails(true),
-            true,
-            on,
-        );
-        // i18n: View → File icons: show only simple generic file-type icons
-        let b = MenuEntry::Radio("&Simple icons", Cmd::FileThumbnails(false), true, !on);
-        // i18n: View menu: submenu choosing between per-file thumbnails and simple icons
-        MenuEntry::Sub("File &icons", true, vec![a, b])
-    }
-
     /// View → Text (Windows): how the letters are drawn. Smooth is DirectWrite's natural look
     /// (any size, each letter where it falls: easy to read on a dense screen); Classic is the
     /// hinted whole-pixel look of Windows' old controls. Applies at once.
