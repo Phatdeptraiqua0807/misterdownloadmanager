@@ -239,10 +239,18 @@ pub struct Thumbnail {
     pub size: [u32; 2],
 }
 
+type FileStamp = (u64, Option<std::time::SystemTime>);
+
+fn file_stamp(path: &std::path::Path) -> Option<FileStamp> {
+    let meta = std::fs::metadata(path).ok()?;
+    Some((meta.len(), meta.modified().ok()))
+}
+
 #[derive(Default)]
 struct ThumbCache {
     /// `None` while the lookup runs; `Some(None)` when the file has no thumbnail.
     items: HashMap<std::path::PathBuf, Option<Option<Thumbnail>>>,
+    stamps: HashMap<std::path::PathBuf, Option<FileStamp>>,
     order: VecDeque<std::path::PathBuf>,
     lookups: Option<Sender<(std::path::PathBuf, u64, egui::Context)>>,
     generations: HashMap<std::path::PathBuf, u64>,
@@ -266,9 +274,11 @@ fn evict_lru(c: &mut ThumbCache) {
     while c.items.len() >= MAX_THUMBNAILS {
         let Some(oldest) = c.order.pop_front() else {
             c.items.clear();
+            c.stamps.clear();
             break;
         };
         c.items.remove(&oldest);
+        c.stamps.remove(&oldest);
         c.generations.remove(&oldest);
     }
 }
@@ -277,15 +287,28 @@ fn evict_lru(c: &mut ThumbCache) {
 pub fn thumbnail(ctx: &egui::Context, path: &std::path::Path) -> Option<Thumbnail> {
     let mut c = thumb_cache();
     if let Some(entry) = c.items.get(path).cloned() {
-        touch_lru(&mut c.order, path);
-        return entry.flatten();
+        if let Some(Some(thumb)) = entry {
+            touch_lru(&mut c.order, path);
+            return Some(thumb);
+        }
+        if entry.is_none() {
+            // Still loading in the background thread.
+            return None;
+        }
+        // Previous lookup returned `None`: keep it only while the file's size/mtime is unchanged.
+        let now_stamp = file_stamp(path);
+        if c.stamps.get(path).copied().flatten() == now_stamp && now_stamp.is_some() {
+            touch_lru(&mut c.order, path);
+            return None;
+        }
     }
     evict_lru(&mut c);
     c.next_gen = c.next_gen.wrapping_add(1);
     let generation = c.next_gen;
     let key = path.to_path_buf();
     c.items.insert(key.clone(), None);
-    c.order.push_back(key.clone());
+    c.stamps.insert(key.clone(), file_stamp(path));
+    touch_lru(&mut c.order, &key);
     c.generations.insert(key.clone(), generation);
     let tx = c.lookups.get_or_insert_with(start_thumb_lookups);
     let _ = tx.send((key, generation, ctx.clone()));
@@ -296,6 +319,7 @@ pub fn thumbnail(ctx: &egui::Context, path: &std::path::Path) -> Option<Thumbnai
 pub fn invalidate_thumbnail(path: &std::path::Path) {
     let mut c = thumb_cache();
     c.items.remove(path);
+    c.stamps.remove(path);
     c.order.retain(|p| p != path);
     c.next_gen = c.next_gen.wrapping_add(1);
     let generation = c.next_gen;
@@ -308,6 +332,7 @@ fn start_thumb_lookups() -> Sender<(std::path::PathBuf, u64, egui::Context)> {
         .name("file thumbnails".into())
         .spawn(move || {
             for (path, generation, ctx) in rx {
+                let stamp = file_stamp(&path);
                 let got = std::panic::catch_unwind(|| load_thumbnail(&path, 256))
                     .ok()
                     .flatten();
@@ -318,7 +343,9 @@ fn start_thumb_lookups() -> Sender<(std::path::PathBuf, u64, egui::Context)> {
                         evict_lru(&mut c);
                     }
                     touch_lru(&mut c.order, &path);
+                    c.stamps.insert(path.clone(), stamp);
                     c.items.insert(path, Some(thumb));
+                    ctx.request_ui_pass(egui::ViewportId::ROOT);
                     ctx.request_repaint();
                 }
             }
@@ -343,6 +370,9 @@ fn fit_rect_size(w: u32, h: u32, max_px: u32) -> (u32, u32) {
 }
 
 fn load_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
+    if path.is_dir() {
+        return folder_thumbnail(path, max_px);
+    }
     if !path.is_file() {
         return None;
     }
@@ -352,10 +382,27 @@ fn load_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<
         .map(str::to_ascii_lowercase)
         .unwrap_or_default();
     match ext.as_str() {
-        "exe" | "dll" | "scr" | "ocx" | "cpl" => pe_icon_thumbnail(path, max_px),
-        "mp3" | "flac" => audio_cover_thumbnail(path, max_px),
+        "exe" | "dll" | "scr" | "ocx" | "cpl" => {
+            pe_icon_thumbnail(path, max_px).or_else(|| windows_media_thumbnail(path, max_px))
+        }
+        "mp3" | "flac" => audio_cover_thumbnail(path, max_px)
+            .or_else(|| windows_media_thumbnail(path, max_px))
+            .or_else(|| ffmpeg_frame_thumbnail(path, max_px)),
+        "m4a" | "aac" | "ogg" | "opus" | "wma" => windows_media_thumbnail(path, max_px)
+            .or_else(|| mp4_cover_thumbnail(path, max_px))
+            .or_else(|| ffmpeg_frame_thumbnail(path, max_px)),
+        "mp4" | "m4v" | "mov" | "mkv" | "webm" | "avi" | "wmv" | "flv" | "ts" | "m2ts" | "mts"
+        | "3gp" | "ogv" | "mpg" | "mpeg" | "vob" => video_thumbnail(path, max_px),
         "zip" | "cbz" | "epub" | "apk" | "jar" | "xpi" | "docx" | "pptx" | "xlsx" | "odt"
-        | "ods" | "odp" => zip_thumbnail(path, max_px),
+        | "ods" | "odp" => {
+            zip_thumbnail(path, max_px).or_else(|| windows_media_thumbnail(path, max_px))
+        }
+        "png" | "jpg" | "jpeg" | "webp" | "gif" | "bmp" | "ico" | "tiff" | "tif" | "tga"
+        | "pnm" | "hdr" | "dds" | "qoi" | "heic" | "heif" | "avif" | "jxl" | "svg" => {
+            windows_media_thumbnail(path, max_px)
+                .or_else(|| image_thumbnail(path, max_px))
+                .or_else(|| ffmpeg_frame_thumbnail(path, max_px))
+        }
         _ => image_thumbnail(path, max_px),
     }
 }
@@ -366,9 +413,9 @@ pub(crate) fn decode_image_bytes(bytes: &[u8], max_px: u32) -> Option<(u32, u32,
         .with_guessed_format()
         .ok()?;
     let mut limits = image::Limits::default();
-    limits.max_image_width = Some(8192);
-    limits.max_image_height = Some(8192);
-    limits.max_alloc = Some(128 * 1024 * 1024);
+    limits.max_image_width = Some(16384);
+    limits.max_image_height = Some(16384);
+    limits.max_alloc = Some(256 * 1024 * 1024);
     reader.limits(limits);
     let img = reader.decode().ok()?;
     let rgba = img.to_rgba8();
@@ -723,14 +770,356 @@ pub(crate) fn zip_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32,
     decode_image_bytes(&bytes, max_px)
 }
 
-/// Portable image thumbnail decoder for formats supported by the `image` crate (up to 32 MiB).
+/// Portable image thumbnail decoder for formats supported by the `image` crate (up to 64 MiB).
 pub(crate) fn image_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
     let meta = std::fs::metadata(path).ok()?;
-    if !meta.is_file() || meta.len() > 32 * 1024 * 1024 {
+    if !meta.is_file() || meta.len() > 64 * 1024 * 1024 {
         return None;
     }
     let bytes = std::fs::read(path).ok()?;
     decode_image_bytes(&bytes, max_px)
+}
+
+fn find_mp4_covr_in_slice(buf: &[u8], max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
+    let mut pos = 0usize;
+    while pos + 8 <= buf.len() {
+        let raw_size = u32::from_be_bytes(buf.get(pos..pos + 4)?.try_into().ok()?) as usize;
+        let kind = buf.get(pos + 4..pos + 8)?;
+        let (hdr, box_end) = if raw_size == 1 {
+            if pos + 16 > buf.len() {
+                break;
+            }
+            let sz = u64::from_be_bytes(buf.get(pos + 8..pos + 16)?.try_into().ok()?) as usize;
+            (16usize, pos.checked_add(sz)?)
+        } else if raw_size == 0 {
+            (8usize, buf.len())
+        } else if raw_size >= 8 {
+            (8usize, pos.checked_add(raw_size)?)
+        } else {
+            break;
+        };
+        if box_end > buf.len() || box_end <= pos + hdr {
+            break;
+        }
+        let body = &buf[pos + hdr..box_end];
+        match kind {
+            b"udta" | b"ilst" | b"covr" => {
+                if let Some(got) = find_mp4_covr_in_slice(body, max_px) {
+                    return Some(got);
+                }
+            }
+            b"meta" if body.len() > 4 => {
+                if let Some(got) = find_mp4_covr_in_slice(&body[4..], max_px) {
+                    return Some(got);
+                }
+            }
+            b"data" if body.len() > 8 => {
+                if let Some(got) = decode_image_bytes(&body[8..], max_px) {
+                    return Some(got);
+                }
+            }
+            _ => {}
+        }
+        pos = box_end;
+    }
+    None
+}
+
+/// Extract embedded `covr` artwork from MP4 / M4V / MOV / M4A containers in pure Rust.
+pub(crate) fn mp4_cover_thumbnail(
+    path: &std::path::Path,
+    max_px: u32,
+) -> Option<(u32, u32, Vec<u8>)> {
+    let mut f = std::fs::File::open(path).ok()?;
+    let file_len = f.metadata().ok()?.len();
+    let mut pos = 0u64;
+    let mut hdr = [0u8; 16];
+    for _ in 0..64 {
+        if pos + 8 > file_len {
+            break;
+        }
+        f.seek(SeekFrom::Start(pos)).ok()?;
+        f.read_exact(&mut hdr[..8]).ok()?;
+        let raw_size = u32::from_be_bytes(hdr[0..4].try_into().ok()?) as u64;
+        let kind = [hdr[4], hdr[5], hdr[6], hdr[7]];
+        let (box_hdr, box_size) = if raw_size == 1 {
+            if pos + 16 > file_len {
+                break;
+            }
+            f.read_exact(&mut hdr[8..16]).ok()?;
+            (16u64, u64::from_be_bytes(hdr[8..16].try_into().ok()?))
+        } else if raw_size == 0 {
+            (8u64, file_len.saturating_sub(pos))
+        } else if raw_size >= 8 {
+            (8u64, raw_size)
+        } else {
+            break;
+        };
+        let body_len = box_size.checked_sub(box_hdr)?;
+        if &kind == b"moov" && body_len <= 16 * 1024 * 1024 {
+            let mut moov = vec![0u8; body_len as usize];
+            f.read_exact(&mut moov).ok()?;
+            return find_mp4_covr_in_slice(&moov, max_px);
+        }
+        pos = pos.checked_add(box_size)?;
+    }
+    None
+}
+
+fn find_ffmpeg_exe() -> std::path::PathBuf {
+    if let Some(dir) = mdm_tools::tools_dir()
+        && let Some(inst) = mdm_tools::ffmpeg::installed(&dir)
+    {
+        return inst.exe;
+    }
+    std::path::PathBuf::from(if cfg!(windows) {
+        "ffmpeg.exe"
+    } else {
+        "ffmpeg"
+    })
+}
+
+fn run_ffmpeg_frame(
+    ffmpeg: &std::path::Path,
+    path: &std::path::Path,
+    seek: &str,
+    max_px: u32,
+) -> Option<(u32, u32, Vec<u8>)> {
+    let mut cmd = std::process::Command::new(ffmpeg);
+    cmd.args([
+        "-nostdin",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-ss",
+        seek,
+        "-i",
+    ])
+    .arg(path)
+    .args([
+        "-frames:v",
+        "1",
+        "-vf",
+        &format!("scale='min({max_px},iw)':-1"),
+        "-f",
+        "image2pipe",
+        "-vcodec",
+        "png",
+        "-",
+    ])
+    .stdin(std::process::Stdio::null())
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let out = cmd.output().ok()?;
+    if !out.status.success() || out.stdout.is_empty() {
+        return None;
+    }
+    decode_image_bytes(&out.stdout, max_px)
+}
+
+/// Extract a single frame from a video or media file using `ffmpeg` (MDM's helper or system PATH).
+pub(crate) fn ffmpeg_frame_thumbnail(
+    path: &std::path::Path,
+    max_px: u32,
+) -> Option<(u32, u32, Vec<u8>)> {
+    let ffmpeg = find_ffmpeg_exe();
+    run_ffmpeg_frame(&ffmpeg, path, "00:00:01", max_px)
+        .or_else(|| run_ffmpeg_frame(&ffmpeg, path, "00:00:00", max_px))
+}
+
+/// Extract a thumbnail for a video file: Windows' system thumbnailer first (on Windows), then
+/// sidecar image, embedded MP4 cover, and ffmpeg.
+pub(crate) fn video_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
+    if let Some(got) = windows_media_thumbnail(path, max_px) {
+        return Some(got);
+    }
+    for ext in ["webp", "jpg", "jpeg", "png"] {
+        let sidecar = path.with_extension(ext);
+        if sidecar != path
+            && sidecar.is_file()
+            && let Some(got) = image_thumbnail(&sidecar, max_px)
+        {
+            return Some(got);
+        }
+    }
+    mp4_cover_thumbnail(path, max_px).or_else(|| ffmpeg_frame_thumbnail(path, max_px))
+}
+
+#[cfg(not(windows))]
+fn windows_media_thumbnail(_path: &std::path::Path, _max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
+    None
+}
+
+#[cfg(windows)]
+fn windows_media_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
+    use std::ffi::c_void;
+    use std::mem::{size_of, zeroed};
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Foundation::SIZE;
+    use windows_sys::Win32::Graphics::Gdi::{
+        BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC,
+        GetDIBits, GetObjectW, HBITMAP, ReleaseDC,
+    };
+    use windows_sys::Win32::System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx};
+    use windows_sys::Win32::UI::Shell::SHCreateItemFromParsingName;
+
+    #[repr(C)]
+    struct ShellItemImageFactoryVtbl {
+        _query_interface: usize,
+        _add_ref: usize,
+        release: unsafe extern "system" fn(*mut c_void) -> u32,
+        get_image: unsafe extern "system" fn(
+            *mut c_void,
+            SIZE,
+            i32,
+            *mut HBITMAP,
+        ) -> windows_sys::core::HRESULT,
+    }
+
+    const IID_SHELL_ITEM_IMAGE_FACTORY: windows_sys::core::GUID = windows_sys::core::GUID {
+        data1: 0xBCC1_8B79,
+        data2: 0xBA16,
+        data3: 0x442F,
+        data4: [0x80, 0xC4, 0x8A, 0x59, 0xC3, 0x0C, 0x46, 0x3B],
+    };
+    const SIIGBF_THUMBNAILONLY: i32 = 0x0000_0008;
+
+    let abs = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir().ok()?.join(path)
+    };
+    let mut wide: Vec<u16> = abs
+        .as_os_str()
+        .encode_wide()
+        .map(|u| if u == b'/' as u16 { b'\\' as u16 } else { u })
+        .collect();
+    let unc_prefix: [u16; 8] = [
+        b'\\' as u16,
+        b'\\' as u16,
+        b'?' as u16,
+        b'\\' as u16,
+        b'U' as u16,
+        b'N' as u16,
+        b'C' as u16,
+        b'\\' as u16,
+    ];
+    let verbatim_prefix: [u16; 4] = [b'\\' as u16, b'\\' as u16, b'?' as u16, b'\\' as u16];
+    if wide.starts_with(&unc_prefix) {
+        wide.drain(2..7);
+    } else if wide.starts_with(&verbatim_prefix) {
+        wide.drain(..4);
+    }
+    wide.push(0);
+
+    let side = max_px.clamp(1, 512) as i32;
+    // SAFETY: initializes COM on the thumbnail worker thread; `wide` is NUL-terminated; releases
+    // the COM interface and deletes the GDI bitmap before returning.
+    unsafe {
+        let _ = CoInitializeEx(std::ptr::null(), COINIT_APARTMENTTHREADED as u32);
+        let mut factory: *mut c_void = std::ptr::null_mut();
+        let hr = SHCreateItemFromParsingName(
+            wide.as_ptr(),
+            std::ptr::null_mut(),
+            &IID_SHELL_ITEM_IMAGE_FACTORY,
+            &mut factory,
+        );
+        if hr < 0 || factory.is_null() {
+            return None;
+        }
+        let vtbl = &**(factory as *const *const ShellItemImageFactoryVtbl);
+        let mut hbmp: HBITMAP = std::ptr::null_mut();
+        let hr = (vtbl.get_image)(
+            factory,
+            SIZE { cx: side, cy: side },
+            SIIGBF_THUMBNAILONLY,
+            &mut hbmp,
+        );
+        (vtbl.release)(factory);
+        if hr < 0 || hbmp.is_null() {
+            return None;
+        }
+        let mut bm: BITMAP = zeroed();
+        let got = GetObjectW(
+            hbmp as _,
+            size_of::<BITMAP>() as i32,
+            &mut bm as *mut BITMAP as *mut c_void,
+        ) != 0;
+        let (w, h) = (bm.bmWidth, bm.bmHeight.abs());
+        let mut res = None;
+        if got && w > 0 && h > 0 && w <= 1024 && h <= 1024 {
+            let mut bmi: BITMAPINFO = zeroed();
+            bmi.bmiHeader = BITMAPINFOHEADER {
+                biSize: size_of::<BITMAPINFOHEADER>() as u32,
+                biWidth: w,
+                biHeight: -h,
+                biPlanes: 1,
+                biBitCount: 32,
+                biCompression: BI_RGB,
+                ..zeroed()
+            };
+            let mut px = vec![0u8; (w as usize) * (h as usize) * 4];
+            let dc = GetDC(std::ptr::null_mut());
+            let lines = GetDIBits(
+                dc,
+                hbmp,
+                0,
+                h as u32,
+                px.as_mut_ptr() as *mut c_void,
+                &mut bmi,
+                DIB_RGB_COLORS,
+            );
+            ReleaseDC(std::ptr::null_mut(), dc);
+            if lines == h {
+                let any_alpha = px.as_chunks::<4>().0.iter().any(|c| c[3] != 0);
+                for c in px.as_chunks_mut::<4>().0 {
+                    c.swap(0, 2);
+                    if !any_alpha {
+                        c[3] = 255;
+                    }
+                }
+                res = Some((w as u32, h as u32, px));
+            }
+        }
+        DeleteObject(hbmp as _);
+        res
+    }
+}
+
+/// Find the first image or video inside a completed folder download (gallery or multi-file torrent).
+fn folder_thumbnail(dir: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
+    let entries = std::fs::read_dir(dir).ok()?;
+    for entry in entries.take(32).flatten() {
+        let p = entry.path();
+        if !p.is_file() {
+            continue;
+        }
+        let ext = p
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(str::to_ascii_lowercase)
+            .unwrap_or_default();
+        match ext.as_str() {
+            "png" | "jpg" | "jpeg" | "webp" | "gif" | "bmp" | "ico" | "tiff" | "tga" | "qoi" => {
+                if let Some(got) = image_thumbnail(&p, max_px) {
+                    return Some(got);
+                }
+            }
+            "mp4" | "m4v" | "mov" | "mkv" | "webm" | "avi" | "wmv" => {
+                if let Some(got) = video_thumbnail(&p, max_px) {
+                    return Some(got);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn to_thumbnail(
@@ -782,12 +1171,14 @@ fn is_pe_binary(path: &std::path::Path) -> bool {
 
 /// Draw the row/dialog icon for `path` in `rc` (on screen): system file-type icons (plus embedded
 /// application icons for `.exe`/`.dll`) when enabled, or simple theme icons otherwise. Content
-/// thumbnails (images, audio cover art, archive previews) are reserved for the hover preview.
+/// thumbnails (images, audio cover art, archive previews, videos) are pre-warmed for the hover
+/// preview.
 pub fn paint_file(ui: &Ui, painter: &Painter, path: &std::path::Path, rc: Rect) {
     let ctx = ui.ctx();
+    let thumb = thumbnail(ctx, path);
     if thumbnails_enabled()
         && is_pe_binary(path)
-        && let Some(thumb) = thumbnail(ctx, path)
+        && let Some(thumb) = thumb
     {
         let ppp = ctx.pixels_per_point();
         let rc = rc.round_to_pixels(ppp);

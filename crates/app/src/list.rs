@@ -1103,11 +1103,6 @@ pub fn show(
                     .map(english)
                     .is_some_and(|h| cell.contains(h))
                 {
-                    if *c == 0
-                        && let IconKey::File(path) = &row.icon
-                    {
-                        thumb_under_pointer = Some((path.clone(), row.cells[0].clone()));
-                    }
                     let tip = if *c == 3 {
                         let events = status_tip(idx);
                         match &row.status_whole {
@@ -1120,6 +1115,11 @@ pub fn show(
                     } else {
                         String::new()
                     };
+                    if (*c == 0 || tip.is_empty())
+                        && let IconKey::File(path) = &row.icon
+                    {
+                        thumb_under_pointer = Some((path.clone(), row.cells[0].clone()));
+                    }
                     if !tip.is_empty() {
                         cut_under_pointer = Some(tip);
                     } else if s != value {
