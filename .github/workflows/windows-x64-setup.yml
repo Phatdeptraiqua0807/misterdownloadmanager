@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -87,3 +87,22 @@ jobs:
           name: windows-x64-setup
           path: target/dist/*
           retention-days: 14
+
+      - name: Publish to GitHub Releases
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $v = [regex]::Match((Get-Content Cargo.toml -Raw), '(?m)^version\s*=\s*"([^"]+)"').Groups[1].Value
+          $tag = "v$v-win-x64"
+          $title = "Mister Download Manager v$v (Windows x64)"
+          $notes = "Automated Windows x64 build from commit ${{ github.sha }}."
+          $files = (Get-ChildItem target/dist -File).FullName
+          gh release view $tag > $null 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $files --clobber
+            gh release edit $tag --title $title --notes $notes --latest
+          } else {
+            gh release create $tag $files --target ${{ github.sha }} --title $title --notes $notes --latest
+          }
