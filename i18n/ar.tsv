@@ -1421,11 +1421,6 @@
 	File name	اسم الملف
 #. checkbox in the Find window
 	File name or part of the name	اسم الملف أو جزء من الاسم
-#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
-#. a download's status (state it is in, not a command)
-#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
-#, machine
-	File not found	الملف غير موجود
 #. window title in a download's Properties window
 	File Properties	خصائص الملف
 #. text in a download's progress window
@@ -5455,11 +5450,6 @@ menu	&Scheduler and queues	&المجدول وقوائم الانتظار
 #, machine
 menu	&Show hidden tabs	إظهار علامات التبويب الم&خفية
 #. menu command in the main window
-#. View → File icons: show only simple generic file-type icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	&Simple icons	أيقونات &بسيطة
-#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -5470,11 +5460,6 @@ menu	&Stop All	&إيقاف الكل
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Stop Download	إيقاف الت&نزيل
-#. menu command in the main window
-#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	&Thumbnails and file icons	المص&غرات وأيقونات الملفات
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Tray icon	أيقونة &علبة النظام
@@ -5639,11 +5624,6 @@ menu	Emerald	زمردي
 #. menu command in the main window
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 menu	Extract	استخراج
-#. menu command in the main window
-#. View menu: submenu choosing between per-file thumbnails and simple icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	File &icons	أ&يقونات الملفات
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it

@@ -1723,10 +1723,6 @@
 #. checkbox in the Find window
 #, machine
 	File name or part of the name	Tên tệp hoặc một phần của tên
-#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
-#. a download's status (state it is in, not a command)
-#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
-	File not found	Không tìm thấy tệp
 #. window title in a download's Properties window
 #, machine
 	File Properties	Thuộc tính tệp
@@ -6674,10 +6670,6 @@ menu	&Scheduler and queues	&Bộ lập lịch và hàng đợi
 #, machine
 menu	&Show hidden tabs	Hiển thị các thẻ đã &ẩn
 #. menu command in the main window
-#. View → File icons: show only simple generic file-type icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-menu	&Simple icons	Biểu tượng đơn &giản
-#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6690,10 +6682,6 @@ menu	&Stop All	&Dừng tất cả
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Stop Download	&Dừng tải xuống
-#. menu command in the main window
-#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-menu	&Thumbnails and file icons	&Hình thu nhỏ và biểu tượng tệp
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6913,10 +6901,6 @@ menu	Emerald	Emerald
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 #, machine
 menu	Extract	Giải nén
-#. menu command in the main window
-#. View menu: submenu choosing between per-file thumbnails and simple icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-menu	File &icons	&Biểu tượng tệp
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it

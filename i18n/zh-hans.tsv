@@ -1767,11 +1767,6 @@
 #. checkbox in the Find window
 #, machine
 	File name or part of the name	文件名或名称的一部分
-#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
-#. a download's status (state it is in, not a command)
-#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
-#, machine
-	File not found	找不到文件
 #. window title in a download's Properties window
 #, machine
 	File Properties	文件属性
@@ -6759,11 +6754,6 @@ menu	&Scheduler and queues	计划任务和队列(&S)
 #, machine
 menu	&Show hidden tabs	显示隐藏的选项卡(&S)
 #. menu command in the main window
-#. View → File icons: show only simple generic file-type icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	&Simple icons	简单图标(&S)
-#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6776,11 +6766,6 @@ menu	&Stop All	全部停止(&S)
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Stop Download	停止下载(&S)
-#. menu command in the main window
-#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	&Thumbnails and file icons	缩略图和文件图标(&T)
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6990,11 +6975,6 @@ menu	Emerald	翡翠绿
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 #, machine
 menu	Extract	解压
-#. menu command in the main window
-#. View menu: submenu choosing between per-file thumbnails and simple icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	File &icons	文件图标(&I)
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it
