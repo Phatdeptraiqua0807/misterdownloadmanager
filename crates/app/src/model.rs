@@ -1600,8 +1600,7 @@ impl Item {
         self.torrent.is_none() && self.snap.as_ref().is_some_and(every_byte_in)
     }
 
-    /// Whether this finished download's saved file is missing from `dest` (deleted while its
-    /// folder is still present).
+    /// Whether this finished download's saved file is missing from `dest` (#342: deleted while its folder is still there).
     pub fn is_file_missing(&self) -> bool {
         self.status == Status::Complete && self.file_missing
     }
@@ -2759,7 +2758,10 @@ mod limit_tests {
         assert_eq!(item.status_text(), "Complete");
 
         item.moved_away = true;
-        assert!(!item.is_file_missing(), "moved_away is not missing");
+        assert!(
+            !item.is_file_missing(),
+            "a file dragged elsewhere by the user is not missing"
+        );
         assert_eq!(item.status_text(), "Complete");
     }
 }

@@ -89,8 +89,6 @@ pub struct Settings {
     pub many_connections: bool,
     /// Show the "Download complete" dialog (Options → Downloads).
     pub show_complete: bool,
-    /// Show file thumbnails (and per-file icons) in the download list and File Properties.
-    pub show_thumbnails: bool,
     /// Download complete snoozed until then (unix seconds; its window's Snooze menu, #741):
     /// `show_complete` stays as it is. A snooze until MDM restarts is not saved.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -137,6 +135,9 @@ pub struct Settings {
     /// controls' hinted, whole-pixel look, the default (`crate::theme::set_smooth_text`): text
     /// doesn't change look on an update; a dense screen can choose Smooth.
     pub smooth_text: bool,
+    /// View → File icons: show per-file thumbnails and embedded icons (true, the default) or
+    /// simple generic file-type icons (false).
+    pub file_thumbnails: bool,
     /// Scheduler → Download limits: "Download no more than `limits_mb` MBytes every
     /// `limits_hours` hours" (IDM defaults 200 / 5), with a warning before stopping.
     pub limits_on: bool,
@@ -426,7 +427,6 @@ impl Default for Settings {
             max_connections: 8,
             many_connections: false,
             show_complete: true,
-            show_thumbnails: true,
             complete_snoozed_until: None,
             double_click_open: false,
             confirm_delete: true,
@@ -444,6 +444,7 @@ impl Default for Settings {
             window_system: None,
             interface_size: 100,
             smooth_text: false,
+            file_thumbnails: true,
             limits_on: false,
             limits_mb: 200,
             limits_hours: 5,

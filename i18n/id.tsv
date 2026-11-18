@@ -130,7 +130,7 @@
 #. verb: save the changes
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 	&Apply	&Terapkan
-#. text in the Scheduler window
+#. text in the Scheduler window; button in standard windows
 #. verb: close the window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 	&Close	&Tutup
@@ -364,7 +364,7 @@
 	All	Semua
 #. item in the Categories tree in the main window
 	All Downloads	Semua Unduhan
-#. message or event log entry in the main window
+#. message or event log entry in the main window; text in standard windows
 	All files	Semua file
 #. text in helpers.rs
 	All set: on a page with a video, use Tasks → Download video from a page.	Semua siap: di halaman dengan video, gunakan Tugas → Unduh video dari halaman.
@@ -724,7 +724,9 @@
 #. text in the download list (sizes, speeds, status)
 #. the list's Status column while a torrent's files or a finished file are checked (against the torrent's hashes or a checksum); {percent} how much is checked, e.g. "42%". One short word: the column is narrow
 	Checking {percent}	Memeriksa {percent}
-#. text in the Checksum window; text in the Link grabber window
+#. text in the Checksum window; text in extension.rs; text in the Link grabber window; text in the Options window
+#. in the browser extension's window, while it reads whether the browsers can reach MDM (a moment, usually)
+#. Test browser integration, while it reads where browser integration stands (a moment, usually)
 #. the trailing ... means it is still going on: keep it
 	Checking...	Memeriksa...
 #. text in countries.rs
@@ -927,7 +929,7 @@
 	Default download settings	Pengaturan unduhan default
 #. text in the Options window
 	Default max. conn. number	Jumlah koneksi maks. default
-#. message or event log entry in the main window; button in a dialog box; button in the Options window; button in rssdlg.rs
+#. text in the main window's messages (deleting downloads' files); button in a dialog box; button in the Options window; button in rssdlg.rs
 #. button: deletes the category
 #. verb: delete the item
 	Delete	Hapus
@@ -1331,6 +1333,11 @@
 	File name	Nama file
 #. checkbox in the Find window
 	File name or part of the name	Nama file atau bagian dari nama
+#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
+#. a download's status (state it is in, not a command)
+#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
+#, machine
+	File not found	File tidak ditemukan
 #. window title in a download's Properties window
 	File Properties	Properti File
 #. text in a download's progress window
@@ -2088,7 +2095,7 @@
 	Mister Download Manager Configuration	Konfigurasi Mister Download Manager
 #. text in crashui.rs
 	Mister Download Manager crash report	Laporan crash Mister Download Manager
-#. text in crashui.rs
+#. text in crashui.rs; text in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. crash report window heading: an internal error, MDM still running
 	Mister Download Manager hit an internal error	Mister Download Manager mengalami kesalahan internal
 #. text in wake.rs
@@ -2151,8 +2158,6 @@
 	Move	Pindahkan
 #. what a keyboard shortcut does in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 	Move a page up / down	Pindahkan halaman ke atas/bawah
-#. what a keyboard shortcut does in the Help menu's windows (About, updates, shortcuts, Tell a friend)
-	Move between the categories and the download list	Pindah antara kategori dan daftar unduhan
 #. text in the Scheduler window
 	Move down	Pindahkan ke bawah
 #. text in a dialog box
@@ -2380,7 +2385,6 @@
 #. value in a column's filter list in the download list
 	Not in a queue	Tidak dalam antrean
 #. text in helpers.rs
-#. Video helpers: no copy of this helper yet
 	Not installed yet	Belum terinstal
 #. text in the Link grabber window
 #. Link grabber, a link's status: a web page sent it (Click'n'Load), so it isn't looked up (name, size, online) before it is added
@@ -2494,7 +2498,9 @@
 #. title of the message when the folder of a downloaded file can't be shown
 #. button that opens the torrent's containing folder in the file manager
 	Open folder	Buka folder
-#. text in a download's progress window
+#. text in the Link grabber window; text in a download's progress window
+#. Link grabber, a link's status: the remedy from the failure's sentence, for a site link that is a web page, not the file (and a server that sent a web page instead of it). The sentence is the cell's hover tip
+#. Link grabber, a link's status: the remedy from the failure's sentence, for a server that sent a web page instead of the file. The sentence is the cell's hover tip
 #. button in a download's progress window when the site sent a web page (a waiting page, a captcha) instead of the file: opens the download's link in the web browser
 	Open in browser	Buka di browser
 #. checkbox in the Add torrent window
@@ -2920,9 +2926,6 @@
 	Search:	Cari:
 #. text in the Batch download window
 	Second file:	File kedua:
-#. text in a dialog box
-#. title of the folder picker
-	Select a folder	Pilih folder
 #. button in playlistdlg.rs; button in the Add torrent window; text in torrentfiles.rs
 #. button in Download video for a playlist: tick every video
 	Select all	Pilih semua
@@ -3534,8 +3537,6 @@
 #. text in extracting archives (a download's log, the Archive password window)
 #. why an archive wasn't extracted (after "Couldn't extract {name}: ")
 	the password is wrong	kata sandi salah
-#. text in errors.rs
-	the path is too long for Windows: {path}	jalur terlalu panjang untuk Windows: {path}
 #. text in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. why updates could not be checked: the newest release on the site has no number
 	the release has no version	rilis tidak memiliki versi
@@ -3596,6 +3597,10 @@
 #. text in the Download video window
 #. the Download video window: the site's bot check (Cloudflare) turned yt-dlp away and no browser cookies were used
 	The site's bot check (Cloudflare) refused yt-dlp. If the page opens in your browser, choose that browser in Options → Sites Logins → Cookies for video sites and look the page up again, or use the Download video button over the video.	Pemeriksaan bot situs (Cloudflare) menolak yt-dlp. Jika halaman terbuka di browser Anda, pilih browser tersebut di Opsi → Login Situs → Cookie untuk situs video dan cari halaman itu lagi, atau gunakan tombol Unduh video di atas video.
+#. text in the Download video window
+#. the Download video window: the site's certificate is trusted neither by yt-dlp nor by the computer (asked again with the computer's certificates, #955); usually an antivirus or a proxy that reads secure (HTTPS) connections signs sites with a certificate of its own
+#, machine
+	The site's certificate isn't trusted, by yt-dlp nor by this computer: an antivirus's web filter or a proxy that reads HTTPS may be in the way. Turn its HTTPS scanning off, or add its certificate to the computer's, then look the page up again.	Sertifikat situs tidak dipercaya, baik oleh yt-dlp maupun oleh komputer ini: filter web antivirus atau proksi yang membaca HTTPS mungkin menghalangi. Matikan pemindaian HTTPS-nya, atau tambahkan sertifikatnya ke komputer, lalu cari halaman lagi.
 #. text in errors.rs
 #. why a download failed: the site's security certificate (what proves a secure, HTTPS, site is the one it says) is past its end date. Browsers warn about the same site
 #, machine
@@ -3604,6 +3609,10 @@
 #. why a download failed: the site's security certificate was made for other site names than the one in the address
 #, machine
 	the site's security certificate is for another site name, so MDM can't be sure it's the real site (your browser warns about it too)	sertifikat keamanan situs ditujukan untuk nama situs lain, jadi MDM tidak dapat memastikan bahwa situs tersebut asli (browser Anda juga memperingatkan hal ini)
+#. text in errors.rs
+#. why a download failed: the site's security certificate is made for other uses than a website (its "extended key usage" leaves out web servers)
+#, machine
+	the site's security certificate isn't made for websites, so MDM can't be sure it's the real site	sertifikat keamanan situs tidak dibuat untuk situs web, jadi MDM tidak dapat memastikan itu adalah situs yang asli
 #. text in errors.rs
 #. why a download failed: the site's security certificate was signed by the site itself or by an issuer this computer doesn't trust. Browsers warn about the same site
 #, machine
@@ -3620,14 +3629,6 @@
 #. why a download failed: the issuer of the site's security certificate took it back
 #, machine
 	the site's security certificate was revoked by its issuer, so MDM won't trust it	sertifikat keamanan situs dicabut oleh penerbitnya, jadi MDM tidak akan mempercayainya
-#. text in the Download video window
-#. the Download video window: the site's certificate is trusted neither by yt-dlp nor by the computer (asked again with the computer's certificates, #955); usually an antivirus or a proxy that reads secure (HTTPS) connections signs sites with a certificate of its own
-#, machine
-	The site's certificate isn't trusted, by yt-dlp nor by this computer: an antivirus's web filter or a proxy that reads HTTPS may be in the way. Turn its HTTPS scanning off, or add its certificate to the computer's, then look the page up again.	Sertifikat situs tidak dipercaya, baik oleh yt-dlp maupun oleh komputer ini: filter web antivirus atau proksi yang membaca HTTPS mungkin menghalangi. Matikan pemindaian HTTPS-nya, atau tambahkan sertifikatnya ke komputer, lalu cari halaman lagi.
-#. text in errors.rs
-#. why a download failed: the site's security certificate is made for other uses than a website (its "extended key usage" leaves out web servers)
-#, machine
-	the site's security certificate isn't made for websites, so MDM can't be sure it's the real site	sertifikat keamanan situs tidak dibuat untuk situs web, jadi MDM tidak dapat memastikan itu adalah situs yang asli
 #. text in crashui.rs
 #. crash report window: the symbols couldn't be downloaded; the report still works
 	The symbols couldn't be fetched: some lines of the report show addresses instead of names (the developers can still read them).	Simbol tidak dapat diambil: beberapa baris laporan menunjukkan alamat alih-alih nama (pengembang masih dapat membacanya).
@@ -3837,7 +3838,7 @@
 #. the kind of file the Open dialog lists
 #. title of the separate window listing a torrent's files
 	Torrent files	File torrent
-#. window title in the Add torrent window
+#. message or event log entry in the main window; window title in the Add torrent window
 	Torrent settings	Pengaturan torrent
 #. text in torrent downloads
 #. an error: Torrent settings ask for the proxy, and Options → Proxy / Socks has no SOCKS5 one
@@ -4263,7 +4264,7 @@
 #. {version} = a version number (keep the braces as they are)
 	Your own program: {path} ({version})	Program Anda sendiri: {path} ({version})
 #. text in helpers.rs
-#. Video helpers (macOS, Linux): {path} = the system's ffmpeg
+#. Video helpers: {path} = the system's yt-dlp, ffmpeg or gallery-dl
 	Your system's: {path}	Sistem Anda: {path}
 #. text in the Download video window
 #. in Download video and the browser's video menu: yt-dlp had no JavaScript runtime, so YouTube listed only some qualities (often only the sound); Node.js and Deno are program names
@@ -4359,7 +4360,8 @@
 #. text in a download's Properties window
 #. a kind of file, by its extension: {ext} = "ZIP", "PDF"…
 	{ext} File	File {ext}
-#. message or event log entry in the main window
+#. text in the main window's messages (deleting downloads' files)
+#. a message: a deleted download's file stayed on the disk; {file} = its name
 #. {error} = an error message (keep the braces as they are)
 	{file} could not be deleted from the disk: {error}	{file} tidak dapat dihapus dari disk: {error}
 #. text in a dialog box
@@ -4373,8 +4375,6 @@
 #. Import refused a file; {size} = its size and {limit} = the largest Import reads, like "4.50 GB" and "64.00 MB"
 #. {size} = a file size such as "4.2 MB" (keep the braces as they are)
 	{file} is too large to be a list of addresses ({size}). Import reads text files, web pages and .ef2 exports of up to {limit}.	{file} terlalu besar untuk menjadi daftar alamat ({size}). Impor membaca file teks, halaman web, dan ekspor .ef2 hingga {limit}.
-#. text in a dialog box
-	{file} was moved elsewhere by dragging it out of Download complete, and MDM couldn't learn where. Look for it where you dropped it.	{file} dipindahkan ke tempat lain dengan menyeretnya keluar dari Unduhan selesai, dan MDM tidak dapat mengetahui lokasinya. Cari di tempat Anda menjatuhkannya.
 #. text in the Checksum window
 #. {algorithm} = a checksum algorithm such as "SHA-256" (keep the braces as they are)
 	{file}: the file does NOT match its checksum ({algorithm})	{file}: file TIDAK cocok dengan checksum-nya ({algorithm})
@@ -4975,9 +4975,6 @@ key	Shift+F10 / Menu	Shift+F10 / Menu
 key	Shift+Up / Shift+Down	Shift+Atas / Shift+Bawah
 #. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
-key	Tab	Tab
-#. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
-#. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
 key	Type a name	Ketik nama
 #. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
@@ -5018,6 +5015,7 @@ menu	&Exit	&Keluar
 menu	&Import	&Impor
 #. menu command in the main window
 #. View menu: submenu choosing how large MDM draws its windows and text (100 % to 200 %), as a browser's zoom
+#. View → Interface size: percentage step in a submenu
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Interface size	Ukuran &antarmuka
 #. menu command in the main window
@@ -5065,6 +5063,11 @@ menu	&Scheduler and queues	&Penjadwal dan antrean
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Show hidden tabs	&Tampilkan tab tersembunyi
 #. menu command in the main window
+#. View → File icons: show only simple generic file-type icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Simple icons	Ikon &sederhana
+#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Smooth	&Halus
@@ -5074,6 +5077,11 @@ menu	&Stop All	&Hentikan Semua
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Stop Download	&Hentikan Unduhan
+#. menu command in the main window
+#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Thumbnails and file icons	&Thumbnail dan ikon file
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Tray icon	Ikon &baki
@@ -5242,6 +5250,11 @@ menu	Emerald	Emerald
 #. menu command in the main window
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 menu	Extract	Ekstrak
+#. menu command in the main window
+#. View menu: submenu choosing between per-file thumbnails and simple icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	File &icons	&Ikon file
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it
@@ -5444,7 +5457,7 @@ menu	To &IDM export file...	Ke file ekspor &IDM...
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #. the trailing ... means it opens a window: keep it
 menu	To &text file...	Ke file &teks...
-#. menu command in the main window
+#. menu command in the main window; menu command in the main window (menus, toolbar, Categories pane)
 #. noun: the toolbar (submenu of View with its settings)
 menu	Toolbar	Bilah Alat
 #. menu command in the main window

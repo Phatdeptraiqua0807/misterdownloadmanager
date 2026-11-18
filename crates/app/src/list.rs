@@ -41,14 +41,13 @@ themed! {
     TEXT => text;
     /// A filtered column's funnel.
     FILTER_ON => accent;
-    /// Status badge fills and glyph from the active theme (light & dark).
-    STATUS_COMPLETE => status_complete;
-    STATUS_DOWNLOADING => status_downloading;
-    STATUS_STOPPED => status_stopped;
-    STATUS_WAITING => status_waiting;
-    STATUS_ERROR => status_error;
-    STATUS_MISSING => status_missing;
-    STATUS_BADGE_FG => status_badge_fg;
+    /// Status icons in the Status column (drawn from the active theme's light & dark palette).
+    STATUS_COMPLETE => success;
+    STATUS_DOWNLOADING => accent;
+    STATUS_STOPPED => reach_medium;
+    STATUS_WAITING => muted;
+    STATUS_ERROR => error;
+    STATUS_GLYPH => list;
 }
 
 /// Columns, by their fixed data slot in [`Row::cells`]: IDM's eight, then the user's additions:
@@ -1058,7 +1057,7 @@ pub fn show(
                     icons.paint_in(ui, &bp, row.icon.clone(), pos2(x0 + 4.0, top));
                     x0 + 22.0
                 } else if *c == STATUS {
-                    paint_status_icon(&clip, row.status_group, pos2(x0 + 4.0, top));
+                    paint_status_icon(ui, &clip, row.status_group, pos2(x0 + 4.0, top));
                     x0 + 20.0
                 } else {
                     x0 + 6.0
@@ -1148,11 +1147,10 @@ pub fn show(
             .map_or(resp.id, row_id);
         winui::keys_with(ui.ctx(), item);
     }
-    let showing_thumb = if let Some((path, name)) = thumb_under_pointer
-        && crate::fileicons::thumbnail(ui.ctx(), &path).is_some()
+    let showing_thumb = if crate::fileicons::thumbnails_enabled()
+        && let Some((path, name)) = thumb_under_pointer
     {
-        crate::fileicons::show_thumbnail_preview(ui.ctx(), &path, &name);
-        true
+        crate::fileicons::show_thumbnail_preview(ui, &path, &name)
     } else {
         false
     };
@@ -1512,13 +1510,28 @@ fn chip(
     label != full
 }
 
-/// Paint a colored 12 × 12 status icon at English point `min` (left edge of the Status cell).
-fn paint_status_icon(p: &egui::Painter, status_group: &str, min: Pos2) {
+/// Paint a themed 12 × 12 status icon at English point `min` (left edge of the Status cell).
+fn paint_status_icon(ui: &Ui, p: &egui::Painter, status_group: &str, min: Pos2) {
     let top = min.y + ((row_h() - 12.0) / 2.0).floor();
     let rc = winui::rect(Rect::from_min_size(
         pos2(min.x, top),
         egui::vec2(12.0, 12.0),
     ));
+    if crate::theme::current().icon_set.is_some() {
+        let need = match status_group {
+            "Complete" => Some("st-complete"),
+            "Downloading" => Some("st-downloading"),
+            "Stopped" => Some("st-paused"),
+            "Waiting" => Some("st-queued"),
+            "Error" | "File not found" => Some("st-error"),
+            _ => None,
+        };
+        if let Some(need) = need
+            && crate::themeicons::paint(ui, p, need, rc, true)
+        {
+            return;
+        }
+    }
     let c = rc.center();
     let r = 5.5;
     let fill = match status_group {
@@ -1526,11 +1539,10 @@ fn paint_status_icon(p: &egui::Painter, status_group: &str, min: Pos2) {
         "Downloading" => STATUS_DOWNLOADING(),
         "Stopped" => STATUS_STOPPED(),
         "Waiting" => STATUS_WAITING(),
-        "Error" => STATUS_ERROR(),
-        "File not found" => STATUS_MISSING(),
+        "Error" | "File not found" => STATUS_ERROR(),
         _ => return,
     };
-    let fg = STATUS_BADGE_FG();
+    let fg = STATUS_GLYPH();
     p.circle_filled(c, r, fill);
     let stroke = egui::Stroke::new(1.5, fg);
     match status_group {

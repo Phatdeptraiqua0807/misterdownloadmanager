@@ -151,7 +151,7 @@
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 	&Apply	П&рименить
-#. text in the Scheduler window
+#. text in the Scheduler window; button in standard windows
 #. verb: close the window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -454,7 +454,7 @@
 #. item in the Categories tree in the main window
 #, machine
 	All Downloads	Все загрузки
-#. message or event log entry in the main window
+#. message or event log entry in the main window; text in standard windows
 #, machine
 	All files	Все файлы
 #. text in helpers.rs
@@ -923,7 +923,9 @@
 #. the list's Status column while a torrent's files or a finished file are checked (against the torrent's hashes or a checksum); {percent} how much is checked, e.g. "42%". One short word: the column is narrow
 #, machine
 	Checking {percent}	Проверка {percent}
-#. text in the Checksum window; text in the Link grabber window
+#. text in the Checksum window; text in extension.rs; text in the Link grabber window; text in the Options window
+#. in the browser extension's window, while it reads whether the browsers can reach MDM (a moment, usually)
+#. Test browser integration, while it reads where browser integration stands (a moment, usually)
 #. the trailing ... means it is still going on: keep it
 #, machine
 	Checking...	Проверка...
@@ -957,7 +959,7 @@
 #. a country's name (where a download's server is)
 #, machine
 	Christmas Island	Остров Рождества
-#. button in the download list
+#. button in the download list; button in the Options window
 #. verb: clears this filter
 #, machine
 	Clear	Очистить
@@ -1179,7 +1181,7 @@
 #. text in the Options window
 #, machine
 	Default max. conn. number	Макс. число соединений по умолчанию
-#. message or event log entry in the main window; button in a dialog box; button in the Options window; button in rssdlg.rs
+#. text in the main window's messages (deleting downloads' files); button in a dialog box; button in the Options window; button in rssdlg.rs
 #. button: deletes the category
 #. verb: delete the item
 #, machine
@@ -1728,6 +1730,11 @@
 #. checkbox in the Find window
 #, machine
 	File name or part of the name	Имя файла или часть имени
+#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
+#. a download's status (state it is in, not a command)
+#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
+#, machine
+	File not found	Файл не найден
 #. window title in a download's Properties window
 #, machine
 	File Properties	Свойства файла
@@ -2751,7 +2758,7 @@
 #. text in crashui.rs
 #, machine
 	Mister Download Manager crash report	Отчет о сбое Mister Download Manager
-#. text in crashui.rs
+#. text in crashui.rs; text in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. crash report window heading: an internal error, MDM still running
 #, machine
 	Mister Download Manager hit an internal error	В Mister Download Manager произошла внутренняя ошибка
@@ -2834,9 +2841,6 @@
 #. what a keyboard shortcut does in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #, machine
 	Move a page up / down	Переместить страницу вверх/вниз
-#. what a keyboard shortcut does in the Help menu's windows (About, updates, shortcuts, Tell a friend)
-#, machine
-	Move between the categories and the download list	Перемещение между категориями и списком загрузок
 #. text in the Scheduler window
 #, machine
 	Move down	Переместить вниз
@@ -3090,7 +3094,7 @@
 #. message or event log entry in the main window
 #, machine
 	No web addresses were found in {file}.	В файле {file} не найдено веб-адресов.
-#. text in the Download video window
+#. text in the Options window; text in the Download video window
 #. in the Subtitles list of Download video: download no subtitles
 #, machine
 	None	Нет
@@ -3148,10 +3152,10 @@
 #, machine
 	Not in a queue	Не в очереди
 #. text in helpers.rs
-#. Video helpers: no copy of this helper yet
 #, machine
 	Not installed yet	Ещё не установлено
-#. button in helpers.rs
+#. text in cnl.rs; button in helpers.rs
+#. button in the Click'n'Load window: refuse these links, ask again next time
 #, machine
 	Not now	Не сейчас
 #. text in helpers.rs
@@ -3299,7 +3303,9 @@
 #. button that opens the torrent's containing folder in the file manager
 #, machine
 	Open folder	Открыть папку
-#. text in a download's progress window
+#. text in the Link grabber window; text in a download's progress window
+#. Link grabber, a link's status: the remedy from the failure's sentence, for a site link that is a web page, not the file (and a server that sent a web page instead of it). The sentence is the cell's hover tip
+#. Link grabber, a link's status: the remedy from the failure's sentence, for a server that sent a web page instead of the file. The sentence is the cell's hover tip
 #. button in a download's progress window when the site sent a web page (a waiting page, a captcha) instead of the file: opens the download's link in the web browser
 #, machine
 	Open in browser	Открыть в браузере
@@ -3417,6 +3423,7 @@
 	Password	Пароль
 #. text in the Link grabber window; text in the Options window
 #. Link grabber: the package's archives' password (a label before its box)
+#. Options → Add an account: label before the field for the password at the debrid service
 #, machine
 	Password:	Пароль:
 #. text in the Add torrent window
@@ -3692,8 +3699,9 @@
 #. {name} = a file name (keep the braces as they are)
 #, machine
 	Remove {name} from the list?	Удалить {name} из списка?
-#. text in a download's progress window
+#. text in a download's progress window; text in torrent_rename.rs
 #. noun: label before the deferred new file or folder name in the progress window
+#. noun: label before the new file or folder name in Add torrent
 #, machine
 	Rename	Переименовать
 #. text in the Batch download window
@@ -3857,10 +3865,6 @@
 #. text in the Batch download window
 #, machine
 	Second file:	Второй файл:
-#. text in a dialog box
-#. title of the folder picker
-#, machine
-	Select a folder	Выбор папки
 #. button in playlistdlg.rs; button in the Add torrent window; text in torrentfiles.rs
 #. button in Download video for a playlist: tick every video
 #, machine
@@ -4674,9 +4678,6 @@
 #. why an archive wasn't extracted (after "Couldn't extract {name}: ")
 #, machine
 	the password is wrong	неверный пароль
-#. text in errors.rs
-#, machine
-	the path is too long for Windows: {path}	путь слишком длинный для Windows: {path}
 #. text in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. why updates could not be checked: the newest release on the site has no number
 #, machine
@@ -4754,6 +4755,10 @@
 #. the Download video window: the site's bot check (Cloudflare) turned yt-dlp away and no browser cookies were used
 #, machine
 	The site's bot check (Cloudflare) refused yt-dlp. If the page opens in your browser, choose that browser in Options → Sites Logins → Cookies for video sites and look the page up again, or use the Download video button over the video.	Проверка на бота (Cloudflare) отказала yt-dlp. Если страница открывается в вашем браузере, выберите этот браузер в разделе «Параметры» → «Входы на сайты» → «Файлы cookie для видеосайтов» и снова найдите страницу или используйте кнопку «Скачать видео» над видео.
+#. text in the Download video window
+#. the Download video window: the site's certificate is trusted neither by yt-dlp nor by the computer (asked again with the computer's certificates, #955); usually an antivirus or a proxy that reads secure (HTTPS) connections signs sites with a certificate of its own
+#, machine
+	The site's certificate isn't trusted, by yt-dlp nor by this computer: an antivirus's web filter or a proxy that reads HTTPS may be in the way. Turn its HTTPS scanning off, or add its certificate to the computer's, then look the page up again.	Сертификат сайта не является доверенным ни для yt-dlp, ни для этого компьютера: возможно, мешает веб-фильтр антивируса или прокси, который читает HTTPS-соединения. Отключите сканирование HTTPS или добавьте его сертификат на компьютер, затем снова найдите страницу.
 #. text in errors.rs
 #. why a download failed: the site's security certificate (what proves a secure, HTTPS, site is the one it says) is past its end date. Browsers warn about the same site
 #, machine
@@ -4762,6 +4767,10 @@
 #. why a download failed: the site's security certificate was made for other site names than the one in the address
 #, machine
 	the site's security certificate is for another site name, so MDM can't be sure it's the real site (your browser warns about it too)	сертификат безопасности сайта предназначен для другого имени сайта, поэтому MDM не может быть уверен, что это настоящий сайт (ваш браузер тоже предупреждает об этом)
+#. text in errors.rs
+#. why a download failed: the site's security certificate is made for other uses than a website (its "extended key usage" leaves out web servers)
+#, machine
+	the site's security certificate isn't made for websites, so MDM can't be sure it's the real site	сертификат безопасности сайта не предназначен для веб-сайтов, поэтому MDM не может быть уверен, что это настоящий сайт
 #. text in errors.rs
 #. why a download failed: the site's security certificate was signed by the site itself or by an issuer this computer doesn't trust. Browsers warn about the same site
 #, machine
@@ -4778,14 +4787,6 @@
 #. why a download failed: the issuer of the site's security certificate took it back
 #, machine
 	the site's security certificate was revoked by its issuer, so MDM won't trust it	сертификат безопасности сайта был отозван его издателем, поэтому MDM не будет доверять ему
-#. text in the Download video window
-#. the Download video window: the site's certificate is trusted neither by yt-dlp nor by the computer (asked again with the computer's certificates, #955); usually an antivirus or a proxy that reads secure (HTTPS) connections signs sites with a certificate of its own
-#, machine
-	The site's certificate isn't trusted, by yt-dlp nor by this computer: an antivirus's web filter or a proxy that reads HTTPS may be in the way. Turn its HTTPS scanning off, or add its certificate to the computer's, then look the page up again.	Сертификат сайта не является доверенным ни для yt-dlp, ни для этого компьютера: возможно, мешает веб-фильтр антивируса или прокси, который читает HTTPS-соединения. Отключите сканирование HTTPS или добавьте его сертификат на компьютер, затем снова найдите страницу.
-#. text in errors.rs
-#. why a download failed: the site's security certificate is made for other uses than a website (its "extended key usage" leaves out web servers)
-#, machine
-	the site's security certificate isn't made for websites, so MDM can't be sure it's the real site	сертификат безопасности сайта не предназначен для веб-сайтов, поэтому MDM не может быть уверен, что это настоящий сайт
 #. text in crashui.rs
 #. crash report window: the symbols couldn't be downloaded; the report still works
 #, machine
@@ -5062,7 +5063,7 @@
 #. title of the separate window listing a torrent's files
 #, machine
 	Torrent files	Торрент-файлы
-#. window title in the Add torrent window
+#. message or event log entry in the main window; window title in the Add torrent window
 #, machine
 	Torrent settings	Настройки торрента
 #. text in torrent downloads
@@ -5624,7 +5625,7 @@
 #, machine
 	Your own program: {path} ({version})	Ваша программа: {path} ({version})
 #. text in helpers.rs
-#. Video helpers (macOS, Linux): {path} = the system's ffmpeg
+#. Video helpers: {path} = the system's yt-dlp, ffmpeg or gallery-dl
 #, machine
 	Your system's: {path}	Ваша системная: {path}
 #. text in the Download video window
@@ -5751,7 +5752,8 @@
 #. a kind of file, by its extension: {ext} = "ZIP", "PDF"…
 #, machine
 	{ext} File	Файл {ext}
-#. message or event log entry in the main window
+#. text in the main window's messages (deleting downloads' files)
+#. a message: a deleted download's file stayed on the disk; {file} = its name
 #. {error} = an error message (keep the braces as they are)
 #, machine
 	{file} could not be deleted from the disk: {error}	Не удалось удалить {file} с диска: {error}
@@ -5770,9 +5772,6 @@
 #. {size} = a file size such as "4.2 MB" (keep the braces as they are)
 #, machine
 	{file} is too large to be a list of addresses ({size}). Import reads text files, web pages and .ef2 exports of up to {limit}.	{file} слишком велик для списка адресов ({size}). Импорт читает текстовые файлы, веб-страницы и экспорты .ef2 размером до {limit}.
-#. text in a dialog box
-#, machine
-	{file} was moved elsewhere by dragging it out of Download complete, and MDM couldn't learn where. Look for it where you dropped it.	Файл {file} был перемещен из «Загрузка завершена» путем перетаскивания, и MDM не удалось определить новое расположение. Найдите его там, куда вы его перетащили.
 #. text in the Checksum window
 #. {algorithm} = a checksum algorithm such as "SHA-256" (keep the braces as they are)
 #, machine
@@ -6561,10 +6560,6 @@ key	Shift+Up / Shift+Down	Shift+Вверх / Shift+Вниз
 #. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
 #, machine
-key	Tab	Tab
-#. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
-#. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
-#, machine
 key	Type a name	Введите имя
 #. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
@@ -6615,6 +6610,7 @@ menu	&Exit	&Выход
 menu	&Import	&Импортировать
 #. menu command in the main window
 #. View menu: submenu choosing how large MDM draws its windows and text (100 % to 200 %), as a browser's zoom
+#. View → Interface size: percentage step in a submenu
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Interface size	Размер &интерфейса
@@ -6675,6 +6671,11 @@ menu	&Scheduler and queues	&Планировщик и очереди
 #, machine
 menu	&Show hidden tabs	Показать скрытые &вкладки
 #. menu command in the main window
+#. View → File icons: show only simple generic file-type icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Simple icons	&Простые значки
+#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6687,6 +6688,11 @@ menu	&Stop All	&Остановить все
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Stop Download	&Остановить загрузку
+#. menu command in the main window
+#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Thumbnails and file icons	&Эскизы и значки файлов
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6896,6 +6902,11 @@ menu	Emerald	Изумрудный
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 #, machine
 menu	Extract	Извлечь
+#. menu command in the main window
+#. View menu: submenu choosing between per-file thumbnails and simple icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	File &icons	&Значки файлов
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it
@@ -7162,7 +7173,7 @@ menu	To &IDM export file...	В &IDM файл экспорта...
 #. the trailing ... means it opens a window: keep it
 #, machine
 menu	To &text file...	В &текстовый файл...
-#. menu command in the main window
+#. menu command in the main window; menu command in the main window (menus, toolbar, Categories pane)
 #. noun: the toolbar (submenu of View with its settings)
 #, machine
 menu	Toolbar	Панель инструментов

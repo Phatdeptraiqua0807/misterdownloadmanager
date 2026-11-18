@@ -6,7 +6,9 @@
 //! icon is ready, and wherever the system has none (a Linux desktop without an icon theme), a
 //! Tango icon the app carries is drawn (public domain, assets/icons/tango/).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Sender, channel};
 use std::sync::{LazyLock, Mutex};
 
@@ -214,6 +216,27 @@ pub(crate) fn fit(rgba: &[u8], side: u32, premultiplied: bool, px: u32) -> Vec<u
 
 // ---- file thumbnails ---------------------------------------------------------------------------
 
+const MAX_THUMBNAILS: usize = 64;
+
+static THUMBNAILS_ON: AtomicBool = AtomicBool::new(true);
+
+/// Enable or disable per-file thumbnails and embedded icons. Turning them off clears cached
+/// textures immediately.
+pub fn set_thumbnails_enabled(on: bool) {
+    THUMBNAILS_ON.store(on, Ordering::Relaxed);
+    if !on {
+        let mut c = thumb_cache();
+        c.items.clear();
+        c.order.clear();
+        c.generations.clear();
+    }
+}
+
+/// Whether per-file thumbnails and embedded icons are enabled (`View → File icons`).
+pub fn thumbnails_enabled() -> bool {
+    THUMBNAILS_ON.load(Ordering::Relaxed)
+}
+
 /// Cached thumbnail textures for an existing file on disk.
 #[derive(Clone)]
 pub struct Thumbnail {
@@ -222,14 +245,11 @@ pub struct Thumbnail {
     pub size: [u32; 2],
 }
 
-/// Maximum number of thumbnail entries kept in memory at once.
-const MAX_THUMBS: usize = 256;
-
 #[derive(Default)]
 struct ThumbCache {
     /// `None` while the lookup runs; `Some(None)` when the file has no thumbnail.
     items: HashMap<std::path::PathBuf, Option<Option<Thumbnail>>>,
-    order: std::collections::VecDeque<std::path::PathBuf>,
+    order: VecDeque<std::path::PathBuf>,
     lookups: Option<Sender<(std::path::PathBuf, u64, egui::Context)>>,
     generations: HashMap<std::path::PathBuf, u64>,
     next_gen: u64,
@@ -241,14 +261,17 @@ fn thumb_cache() -> std::sync::MutexGuard<'static, ThumbCache> {
     THUMB_CACHE.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-fn touch_thumb_order(c: &mut ThumbCache, path: &std::path::Path) {
-    c.order.retain(|p| p != path);
-    c.order.push_back(path.to_path_buf());
+fn touch_lru(order: &mut VecDeque<std::path::PathBuf>, path: &std::path::Path) {
+    if let Some(pos) = order.iter().position(|p| p == path) {
+        order.remove(pos);
+    }
+    order.push_back(path.to_path_buf());
 }
 
-fn evict_thumbs_if_needed(c: &mut ThumbCache) {
-    while c.items.len() >= MAX_THUMBS {
+fn evict_lru(c: &mut ThumbCache) {
+    while c.items.len() >= MAX_THUMBNAILS {
         let Some(oldest) = c.order.pop_front() else {
+            c.items.clear();
             break;
         };
         c.items.remove(&oldest);
@@ -258,13 +281,15 @@ fn evict_thumbs_if_needed(c: &mut ThumbCache) {
 
 /// Return the cached thumbnail for `path`, or queue a background lookup on first ask.
 pub fn thumbnail(ctx: &egui::Context, path: &std::path::Path) -> Option<Thumbnail> {
-    let mut c = thumb_cache();
-    if let Some(entry) = c.items.get(path) {
-        let res = entry.as_ref().and_then(|t| t.clone());
-        touch_thumb_order(&mut c, path);
-        return res;
+    if !thumbnails_enabled() {
+        return None;
     }
-    evict_thumbs_if_needed(&mut c);
+    let mut c = thumb_cache();
+    if let Some(entry) = c.items.get(path).cloned() {
+        touch_lru(&mut c.order, path);
+        return entry.flatten();
+    }
+    evict_lru(&mut c);
     c.next_gen = c.next_gen.wrapping_add(1);
     let generation = c.next_gen;
     let key = path.to_path_buf();
@@ -297,7 +322,11 @@ fn start_thumb_lookups() -> Sender<(std::path::PathBuf, u64, egui::Context)> {
                     .flatten();
                 let thumb = got.and_then(|raw| to_thumbnail(&ctx, &path, raw));
                 let mut c = thumb_cache();
-                if c.generations.get(&path).copied() == Some(generation) {
+                if c.generations.get(&path).copied() == Some(generation) && thumbnails_enabled() {
+                    if !c.items.contains_key(&path) {
+                        evict_lru(&mut c);
+                    }
+                    touch_lru(&mut c.order, &path);
                     c.items.insert(path, Some(thumb));
                     ctx.request_repaint();
                 }
@@ -323,30 +352,34 @@ fn fit_rect_size(w: u32, h: u32, max_px: u32) -> (u32, u32) {
 }
 
 fn load_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
-    if !path.exists() {
+    if !thumbnails_enabled() || !path.is_file() {
         return None;
     }
-    #[cfg(windows)]
-    if std::env::var_os("MDM_SYSTEM_ICONS").is_none_or(|v| v != "0")
-        && let Some(got) = crate::win32::file_thumbnail(path, max_px)
-    {
-        return Some(got);
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_default();
+    match ext.as_str() {
+        "exe" | "dll" | "scr" | "ocx" | "cpl" => pe_icon_thumbnail(path, max_px),
+        "mp3" | "flac" => audio_cover_thumbnail(path, max_px),
+        "zip" | "cbz" | "epub" | "apk" | "jar" | "xpi" | "docx" | "pptx" | "xlsx" | "odt"
+        | "ods" | "odp" => zip_thumbnail(path, max_px),
+        _ => image_thumbnail(path, max_px),
     }
-    image_thumbnail(path, max_px)
 }
 
-/// Portable image thumbnail decoder for formats supported by the `image` crate (up to 32 MiB).
-pub(crate) fn image_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
-    let meta = std::fs::metadata(path).ok()?;
-    if !meta.is_file() || meta.len() > 32 * 1024 * 1024 {
-        return None;
-    }
-    let img = image::ImageReader::open(path)
-        .ok()?
+/// Safely decode image bytes in memory with allocation limits and fit within `max_px`.
+pub(crate) fn decode_image_bytes(bytes: &[u8], max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
+    let mut reader = image::ImageReader::new(Cursor::new(bytes))
         .with_guessed_format()
-        .ok()?
-        .decode()
         .ok()?;
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(8192);
+    limits.max_image_height = Some(8192);
+    limits.max_alloc = Some(128 * 1024 * 1024);
+    reader.limits(limits);
+    let img = reader.decode().ok()?;
     let rgba = img.to_rgba8();
     let (w, h) = rgba.dimensions();
     if w == 0 || h == 0 {
@@ -359,6 +392,351 @@ pub(crate) fn image_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u3
         image::imageops::resize(&rgba, nw, nh, image::imageops::FilterType::Triangle).into_raw()
     };
     Some((nw, nh, out))
+}
+
+fn le_u16(b: &[u8], off: usize) -> Option<u16> {
+    Some(u16::from_le_bytes(b.get(off..off + 2)?.try_into().ok()?))
+}
+
+fn le_u32(b: &[u8], off: usize) -> Option<u32> {
+    Some(u32::from_le_bytes(b.get(off..off + 4)?.try_into().ok()?))
+}
+
+/// Extract embedded `RT_ICON` resource from a Windows PE executable/DLL safely in pure Rust.
+pub(crate) fn pe_icon_thumbnail(
+    path: &std::path::Path,
+    max_px: u32,
+) -> Option<(u32, u32, Vec<u8>)> {
+    let mut f = std::fs::File::open(path).ok()?;
+    let mut hdr = vec![0u8; 4096];
+    let n = f.read(&mut hdr).ok()?;
+    let hdr = &hdr[..n];
+    if hdr.get(0..2)? != b"MZ" {
+        return None;
+    }
+    let pe_off = le_u32(hdr, 0x3c)? as usize;
+    if pe_off.checked_add(24)? > hdr.len() || hdr.get(pe_off..pe_off + 4)? != b"PE\0\0" {
+        return None;
+    }
+    let coff = pe_off + 4;
+    let num_sections = le_u16(hdr, coff + 2)? as usize;
+    let opt_size = le_u16(hdr, coff + 16)? as usize;
+    let opt = coff + 20;
+    let magic = le_u16(hdr, opt)?;
+    let dd_off = match magic {
+        0x10b => opt + 96,  // PE32
+        0x20b => opt + 112, // PE32+
+        _ => return None,
+    };
+    // Data directory index 2 is Resource Table (RVA, Size).
+    let rsrc_rva = le_u32(hdr, dd_off + 2 * 8)?;
+    if rsrc_rva == 0 {
+        return None;
+    }
+    let sec_start = opt.checked_add(opt_size)?;
+    let mut sec_va = 0u32;
+    let mut sec_raw = 0u32;
+    let mut sec_raw_size = 0u32;
+    for i in 0..num_sections.min(64) {
+        let s = sec_start.checked_add(i * 40)?;
+        if s + 40 > hdr.len() {
+            break;
+        }
+        let va = le_u32(hdr, s + 12)?;
+        let raw_size = le_u32(hdr, s + 16)?;
+        let raw_ptr = le_u32(hdr, s + 20)?;
+        let vsize = le_u32(hdr, s + 8)?.max(raw_size);
+        if rsrc_rva >= va && rsrc_rva < va.saturating_add(vsize) {
+            sec_va = va;
+            sec_raw = raw_ptr;
+            sec_raw_size = raw_size;
+            break;
+        }
+    }
+    if sec_raw_size == 0 {
+        return None;
+    }
+    let read_len = (sec_raw_size as usize).min(16 * 1024 * 1024);
+    f.seek(SeekFrom::Start(sec_raw as u64)).ok()?;
+    let mut rsrc = vec![0u8; read_len];
+    let got = f.read(&mut rsrc).ok()?;
+    rsrc.truncate(got);
+
+    let rva_to_rsrc = |rva: u32| -> Option<usize> {
+        let rel = rva.checked_sub(sec_va)?;
+        Some(rel as usize)
+    };
+    let dir_entries = |buf: &[u8], off: usize| -> Option<Vec<(u32, u32)>> {
+        let named = le_u16(buf, off + 12)? as usize;
+        let ided = le_u16(buf, off + 14)? as usize;
+        let total = named.saturating_add(ided).min(128);
+        let mut out = Vec::with_capacity(total);
+        for k in 0..total {
+            let e = off + 16 + k * 8;
+            if e + 8 > buf.len() {
+                break;
+            }
+            out.push((le_u32(buf, e)?, le_u32(buf, e + 4)?));
+        }
+        Some(out)
+    };
+
+    let root_off = rva_to_rsrc(rsrc_rva)?;
+    let rt_icon = dir_entries(&rsrc, root_off)?
+        .into_iter()
+        .find(|(id, child)| *id == 3 && (*child & 0x8000_0000) != 0)?;
+    let level2_off = root_off.checked_add((rt_icon.1 & 0x7fff_ffff) as usize)?;
+    let mut icon_slices: Vec<&[u8]> = Vec::new();
+    for (_, child2) in dir_entries(&rsrc, level2_off)?.into_iter().take(32) {
+        if (child2 & 0x8000_0000) == 0 {
+            continue;
+        }
+        let level3_off = root_off.checked_add((child2 & 0x7fff_ffff) as usize)?;
+        for (_, leaf) in dir_entries(&rsrc, level3_off)?.into_iter().take(4) {
+            if (leaf & 0x8000_0000) != 0 {
+                continue;
+            }
+            let data_entry = root_off.checked_add(leaf as usize)?;
+            let data_rva = le_u32(&rsrc, data_entry)?;
+            let data_size = le_u32(&rsrc, data_entry + 4)? as usize;
+            let data_off = rva_to_rsrc(data_rva)?;
+            if data_size > 0 && data_off.checked_add(data_size)? <= rsrc.len() {
+                icon_slices.push(&rsrc[data_off..data_off + data_size]);
+            }
+        }
+    }
+
+    let mut best: Option<((u32, usize), (u32, u32, Vec<u8>))> = None;
+    for raw in icon_slices {
+        let decoded = if raw.starts_with(b"\x89PNG\r\n\x1a\n") {
+            decode_image_bytes(raw, max_px)
+        } else if le_u32(raw, 0) == Some(40) && raw.len() > 40 {
+            // DIB inside RT_ICON: wrap in a single-entry .ico container so `image` decodes both BMP and XOR/AND masks.
+            let w = le_u32(raw, 4).unwrap_or(0);
+            let h_doubled = le_u32(raw, 8).unwrap_or(0);
+            let h = h_doubled / 2;
+            if w == 0 || h == 0 || w > 512 || h > 512 {
+                continue;
+            }
+            let mut ico = Vec::with_capacity(22 + raw.len());
+            ico.extend_from_slice(&[0, 0, 1, 0, 1, 0]);
+            ico.push(if w >= 256 { 0 } else { w as u8 });
+            ico.push(if h >= 256 { 0 } else { h as u8 });
+            ico.extend_from_slice(&[0, 0, 1, 0]);
+            let bpp = le_u16(raw, 14).unwrap_or(32);
+            ico.extend_from_slice(&bpp.to_le_bytes());
+            ico.extend_from_slice(&(raw.len() as u32).to_le_bytes());
+            ico.extend_from_slice(&22u32.to_le_bytes());
+            ico.extend_from_slice(raw);
+            decode_image_bytes(&ico, max_px)
+        } else {
+            None
+        };
+        if let Some((w, h, px)) = decoded {
+            let score = (w.saturating_mul(h), raw.len());
+            if best.as_ref().is_none_or(|(b, _)| score > *b) {
+                best = Some((score, (w, h, px)));
+            }
+        }
+    }
+    best.map(|(_, img)| img)
+}
+
+/// Extract embedded album art from ID3v2 (`APIC`/`PIC`) or FLAC (`PICTURE`) safely.
+pub(crate) fn audio_cover_thumbnail(
+    path: &std::path::Path,
+    max_px: u32,
+) -> Option<(u32, u32, Vec<u8>)> {
+    let mut f = std::fs::File::open(path).ok()?;
+    let mut buf = vec![0u8; 4 * 1024 * 1024];
+    let n = f.read(&mut buf).ok()?;
+    let b = &buf[..n];
+
+    if b.starts_with(b"ID3") && b.len() >= 10 {
+        let ver = b[3];
+        let syncsafe = |s: &[u8]| -> usize {
+            ((s[0] as usize & 0x7f) << 21)
+                | ((s[1] as usize & 0x7f) << 14)
+                | ((s[2] as usize & 0x7f) << 7)
+                | (s[3] as usize & 0x7f)
+        };
+        let tag_len = syncsafe(&b[6..10]);
+        let end = (10 + tag_len).min(b.len());
+        let mut pos = 10usize;
+        while pos < end {
+            if b[pos] == 0 {
+                break;
+            }
+            if ver == 2 {
+                if pos + 6 > end {
+                    break;
+                }
+                let id = &b[pos..pos + 3];
+                let fsz = ((b[pos + 3] as usize) << 16)
+                    | ((b[pos + 4] as usize) << 8)
+                    | (b[pos + 5] as usize);
+                pos += 6;
+                if fsz == 0 || pos + fsz > end {
+                    break;
+                }
+                if id == b"PIC" && fsz > 6 {
+                    let frame = &b[pos..pos + fsz];
+                    let enc = frame[0];
+                    // encoding (1) + image format (3) + pic type (1) + null-terminated description
+                    let desc = &frame[5..];
+                    let img_off = if matches!(enc, 1 | 2) {
+                        desc.windows(2)
+                            .step_by(2)
+                            .position(|w| w == [0, 0])
+                            .map(|p| 5 + p * 2 + 2)
+                    } else {
+                        desc.iter().position(|&x| x == 0).map(|p| 5 + p + 1)
+                    };
+                    if let Some(o) = img_off
+                        && o < frame.len()
+                        && let Some(got) = decode_image_bytes(&frame[o..], max_px)
+                    {
+                        return Some(got);
+                    }
+                }
+                pos += fsz;
+            } else {
+                if pos + 10 > end {
+                    break;
+                }
+                let id = &b[pos..pos + 4];
+                let fsz = if ver >= 4 {
+                    syncsafe(&b[pos + 4..pos + 8])
+                } else {
+                    u32::from_be_bytes(b[pos + 4..pos + 8].try_into().ok()?) as usize
+                };
+                pos += 10;
+                if fsz == 0 || pos + fsz > end {
+                    break;
+                }
+                if id == b"APIC" && fsz > 4 {
+                    let frame = &b[pos..pos + fsz];
+                    let enc = frame[0];
+                    let Some(mime_end) = frame[1..].iter().position(|&x| x == 0) else {
+                        pos += fsz;
+                        continue;
+                    };
+                    let after_mime = 1 + mime_end + 1;
+                    if after_mime + 1 >= frame.len() {
+                        pos += fsz;
+                        continue;
+                    }
+                    let desc = &frame[after_mime + 1..];
+                    let img_off = if matches!(enc, 1 | 2) {
+                        desc.windows(2)
+                            .step_by(2)
+                            .position(|w| w == [0, 0])
+                            .map(|p| after_mime + 1 + p * 2 + 2)
+                    } else {
+                        desc.iter()
+                            .position(|&x| x == 0)
+                            .map(|p| after_mime + 1 + p + 1)
+                    };
+                    if let Some(o) = img_off
+                        && o < frame.len()
+                        && let Some(got) = decode_image_bytes(&frame[o..], max_px)
+                    {
+                        return Some(got);
+                    }
+                }
+                pos += fsz;
+            }
+        }
+    } else if b.starts_with(b"fLaC") {
+        let mut pos = 4usize;
+        while pos + 4 <= b.len() {
+            let hdr = b[pos];
+            let last = (hdr & 0x80) != 0;
+            let kind = hdr & 0x7f;
+            let len = ((b[pos + 1] as usize) << 16)
+                | ((b[pos + 2] as usize) << 8)
+                | (b[pos + 3] as usize);
+            pos += 4;
+            if pos + len > b.len() {
+                break;
+            }
+            if kind == 6 && len > 32 {
+                let block = &b[pos..pos + len];
+                let mut o = 4; // picture type
+                let mime_len = u32::from_be_bytes(block.get(o..o + 4)?.try_into().ok()?) as usize;
+                o = o.checked_add(4)?.checked_add(mime_len)?;
+                let desc_len = u32::from_be_bytes(block.get(o..o + 4)?.try_into().ok()?) as usize;
+                o = o.checked_add(4)?.checked_add(desc_len)?.checked_add(16)?;
+                let data_len = u32::from_be_bytes(block.get(o..o + 4)?.try_into().ok()?) as usize;
+                o = o.checked_add(4)?;
+                if o.checked_add(data_len)? <= block.len()
+                    && let Some(got) = decode_image_bytes(&block[o..o + data_len], max_px)
+                {
+                    return Some(got);
+                }
+            }
+            pos += len;
+            if last {
+                break;
+            }
+        }
+    }
+    None
+}
+
+/// Extract a cover or thumbnail image from inside a `.zip`/`.cbz`/`.epub`/`.apk` archive safely.
+pub(crate) fn zip_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
+    let f = std::fs::File::open(path).ok()?;
+    let mut archive = zip::ZipArchive::new(f).ok()?;
+    let mut best: Option<(u8, usize)> = None;
+    for i in 0..archive.len().min(64) {
+        let Ok(entry) = archive.by_index_raw(i) else {
+            continue;
+        };
+        if entry.is_dir() || entry.size() == 0 || entry.size() > 8 * 1024 * 1024 {
+            continue;
+        }
+        let lower = entry.name().to_ascii_lowercase();
+        let is_img = [
+            ".png", ".jpg", ".jpeg", ".bmp", ".ico", ".tif", ".tiff", ".tga", ".pnm",
+        ]
+        .iter()
+        .any(|ext| lower.ends_with(ext));
+        if !is_img {
+            continue;
+        }
+        let prio = if lower.contains("thumbnail") || lower.contains("cover") {
+            3
+        } else if lower.contains("ic_launcher") || lower.contains("icon") {
+            2
+        } else {
+            1
+        };
+        if best.is_none_or(|(p, _)| prio > p) {
+            best = Some((prio, i));
+        }
+    }
+    let (_, idx) = best?;
+    let entry = archive.by_index(idx).ok()?;
+    let mut bytes = Vec::new();
+    entry
+        .take(8 * 1024 * 1024 + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    if bytes.len() > 8 * 1024 * 1024 {
+        return None;
+    }
+    decode_image_bytes(&bytes, max_px)
+}
+
+/// Portable image thumbnail decoder for formats supported by the `image` crate (up to 32 MiB).
+pub(crate) fn image_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
+    let meta = std::fs::metadata(path).ok()?;
+    if !meta.is_file() || meta.len() > 32 * 1024 * 1024 {
+        return None;
+    }
+    let bytes = std::fs::read(path).ok()?;
+    decode_image_bytes(&bytes, max_px)
 }
 
 fn to_thumbnail(
@@ -402,7 +780,10 @@ fn to_thumbnail(
 /// Draw the thumbnail for `path` in `rc` (on screen) when available, else its file-type icon.
 pub fn paint_file(ui: &Ui, painter: &Painter, path: &std::path::Path, rc: Rect) {
     let ctx = ui.ctx();
-    if let Some(thumb) = thumbnail(ctx, path) {
+    if thumbnails_enabled()
+        && crate::theme::current().icon_set.is_none()
+        && let Some(thumb) = thumbnail(ctx, path)
+    {
         let ppp = ctx.pixels_per_point();
         let rc = rc.round_to_pixels(ppp);
         let [tw, th] = thumb.size;
@@ -419,7 +800,7 @@ pub fn paint_file(ui: &Ui, painter: &Painter, path: &std::path::Path, rc: Rect) 
         painter.rect_stroke(
             dst,
             0.0,
-            egui::Stroke::new(1.0, Color32::from_black_alpha(40)),
+            egui::Stroke::new(1.0, crate::theme::colors().flag_edge),
             egui::StrokeKind::Inside,
         );
         return;
@@ -431,26 +812,92 @@ pub fn paint_file(ui: &Ui, painter: &Painter, path: &std::path::Path, rc: Rect) 
     paint(ui, painter, Kind::File(&name), rc);
 }
 
-/// Show a floating thumbnail preview popup near the pointer when `path` has a loaded thumbnail.
-pub fn show_thumbnail_preview(ctx: &egui::Context, path: &std::path::Path, file_name: &str) {
-    let Some(thumb) = thumbnail(ctx, path) else {
-        return;
-    };
-    let Some(pos) = ctx.pointer_hover_pos() else {
-        return;
-    };
-    let [tw, th] = thumb.size;
-    if tw == 0 || th == 0 {
-        return;
+/// Show a floating thumbnail preview popup near the pointer when `thumbnails_enabled()`. Returns
+/// true when a popup was shown.
+pub fn show_thumbnail_preview(ui: &Ui, path: &std::path::Path, file_name: &str) -> bool {
+    if !thumbnails_enabled() {
+        return false;
     }
-    let (fw, fh) = (tw as f32, th as f32);
-    let max_dim = fw.max(fh);
-    let scale = max_dim.clamp(48.0, 160.0) / max_dim;
-    let img_w = (fw * scale).round().max(1.0);
-    let img_h = (fh * scale).round().max(1.0);
+    let ctx = ui.ctx();
+    let Some(pos) = ctx.pointer_hover_pos() else {
+        return false;
+    };
+    if let Some(thumb) = thumbnail(ctx, path) {
+        let [tw, th] = thumb.size;
+        if tw == 0 || th == 0 {
+            return false;
+        }
+        let (fw, fh) = (tw as f32, th as f32);
+        let max_dim = fw.max(fh);
+        let scale = max_dim.clamp(48.0, 160.0) / max_dim;
+        let img_w = (fw * scale).round().max(1.0);
+        let img_h = (fh * scale).round().max(1.0);
+        let pad = 8.0;
+        let card_w = img_w.max(120.0) + pad * 2.0;
+        let card_h = pad + img_h + 6.0 + 30.0 + pad;
+        let screen = ctx.content_rect();
+        let x = (pos.x + 14.0)
+            .min(screen.right() - card_w - 6.0)
+            .max(screen.left() + 4.0);
+        let y = (pos.y + 14.0)
+            .min(screen.bottom() - card_h - 6.0)
+            .max(screen.top() + 4.0);
+        let edge = crate::theme::colors().flag_edge;
+        egui::Area::new(egui::Id::unique("mdm-thumb-preview"))
+            .order(egui::Order::Tooltip)
+            .interactable(false)
+            .fixed_pos(pos2(x.round(), y.round()))
+            .show(ctx, |ui| {
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::vec2(card_w, card_h), egui::Sense::hover());
+                let _surface = crate::winui::Surface::enter(rect.min.x, rect.max.x);
+                let p = ui.painter();
+                crate::chrome::popup_surface(p, rect);
+                let img_rect = Rect::from_center_size(
+                    pos2(rect.center().x, rect.top() + pad + img_h / 2.0),
+                    egui::vec2(img_w, img_h),
+                );
+                let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+                p.image(thumb.large.id(), img_rect, uv, Color32::WHITE);
+                p.rect_stroke(
+                    img_rect,
+                    0.0,
+                    egui::Stroke::new(1.0, edge),
+                    egui::StrokeKind::Inside,
+                );
+                let font = crate::winui::tahoma();
+                let text_room = card_w - pad * 2.0;
+                let name =
+                    crate::winui::ellipsize(p, &font, &crate::i18n::isolate(file_name), text_room);
+                crate::winui::text_font(
+                    p,
+                    font.clone(),
+                    rect.left() + pad,
+                    rect.top() + pad + img_h + 16.0,
+                    &name,
+                    crate::winui::TEXT(),
+                );
+                let dims = crate::i18n::ltr(&format!("{tw} × {th}"));
+                crate::winui::text_font(
+                    p,
+                    font,
+                    rect.left() + pad,
+                    rect.top() + pad + img_h + 30.0,
+                    &dims,
+                    crate::winui::MUTED(),
+                );
+            });
+        return true;
+    }
+    let finished = thumb_cache().items.get(path).is_some_and(Option::is_some);
+    if !finished {
+        return false;
+    }
+    let ext = extension(file_name).map(|e| e.to_ascii_uppercase());
     let pad = 8.0;
-    let card_w = img_w.max(120.0) + pad * 2.0;
-    let card_h = pad + img_h + 6.0 + 30.0 + pad;
+    let icon_side = 48.0;
+    let card_w = 136.0;
+    let card_h = pad + icon_side + 6.0 + if ext.is_some() { 30.0 } else { 16.0 } + pad;
     let screen = ctx.content_rect();
     let x = (pos.x + 14.0)
         .min(screen.right() - card_w - 6.0)
@@ -462,24 +909,17 @@ pub fn show_thumbnail_preview(ctx: &egui::Context, path: &std::path::Path, file_
         .order(egui::Order::Tooltip)
         .interactable(false)
         .fixed_pos(pos2(x.round(), y.round()))
-        .show(ctx, |ui| {
+        .show(ctx, |popup_ui| {
             let (rect, _) =
-                ui.allocate_exact_size(egui::vec2(card_w, card_h), egui::Sense::hover());
+                popup_ui.allocate_exact_size(egui::vec2(card_w, card_h), egui::Sense::hover());
             let _surface = crate::winui::Surface::enter(rect.min.x, rect.max.x);
-            let p = ui.painter();
+            let p = popup_ui.painter();
             crate::chrome::popup_surface(p, rect);
             let img_rect = Rect::from_center_size(
-                pos2(rect.center().x, rect.top() + pad + img_h / 2.0),
-                egui::vec2(img_w, img_h),
+                pos2(rect.center().x, rect.top() + pad + icon_side / 2.0),
+                egui::vec2(icon_side, icon_side),
             );
-            let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
-            p.image(thumb.large.id(), img_rect, uv, Color32::WHITE);
-            p.rect_stroke(
-                img_rect,
-                0.0,
-                egui::Stroke::new(1.0, Color32::from_black_alpha(50)),
-                egui::StrokeKind::Inside,
-            );
+            paint(popup_ui, p, Kind::File(file_name), img_rect);
             let font = crate::winui::tahoma();
             let text_room = card_w - pad * 2.0;
             let name =
@@ -488,20 +928,23 @@ pub fn show_thumbnail_preview(ctx: &egui::Context, path: &std::path::Path, file_
                 p,
                 font.clone(),
                 rect.left() + pad,
-                rect.top() + pad + img_h + 16.0,
+                rect.top() + pad + icon_side + 16.0,
                 &name,
                 crate::winui::TEXT(),
             );
-            let dims = crate::i18n::ltr(&format!("{tw} × {th}"));
-            crate::winui::text_font(
-                p,
-                font,
-                rect.left() + pad,
-                rect.top() + pad + img_h + 30.0,
-                &dims,
-                crate::winui::MUTED(),
-            );
+            if let Some(ext) = ext {
+                let kind = crate::i18n::ltr(&ext);
+                crate::winui::text_font(
+                    p,
+                    font,
+                    rect.left() + pad,
+                    rect.top() + pad + icon_side + 30.0,
+                    &kind,
+                    crate::winui::MUTED(),
+                );
+            }
         });
+    true
 }
 
 // ---- drawing -----------------------------------------------------------------------------------
@@ -524,6 +967,10 @@ pub fn paint(ui: &Ui, painter: &Painter, kind: Kind, rc: Rect) {
         if crate::themeicons::paint(ui, painter, need, rc, true) {
             return;
         }
+    }
+    if !thumbnails_enabled() {
+        paint_source(ui, painter, fallback(&what, px), rc);
+        return;
     }
     match shown(ctx, &what, px) {
         Some(Shown::Texture(t)) => {
@@ -858,6 +1305,7 @@ mod tests {
 
     #[test]
     fn thumbnail_loads_png_and_caches_small_and_large_textures() {
+        set_thumbnails_enabled(true);
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("photo.png");
         let mut img = image::RgbaImage::new(120, 80);
@@ -887,5 +1335,144 @@ mod tests {
 
         invalidate_thumbnail(&path);
         assert!(thumbnail(&ctx, &path).is_none(), "cleared by invalidate");
+    }
+
+    #[test]
+    fn thumbnails_extract_jpeg_zip_mp3_and_pe_exe() {
+        use std::io::Write;
+        set_thumbnails_enabled(true);
+        let dir = tempfile::tempdir().unwrap();
+        let mut img = image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+            32,
+            24,
+            image::Rgba([10, 180, 90, 255]),
+        ));
+        let mut png_bytes = Vec::new();
+        img.write_to(&mut Cursor::new(&mut png_bytes), image::ImageFormat::Png)
+            .unwrap();
+
+        // JPEG image.
+        let jpg_path = dir.path().join("pic.jpg");
+        img.to_rgb8().save(&jpg_path).unwrap();
+        assert_eq!(
+            load_thumbnail(&jpg_path, 64).map(|(w, h, _)| (w, h)),
+            Some((32, 24))
+        );
+
+        // ZIP archive containing cover.png.
+        let zip_path = dir.path().join("bundle.zip");
+        {
+            let mut zw = zip::ZipWriter::new(std::fs::File::create(&zip_path).unwrap());
+            zw.start_file("folder/cover.png", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zw.write_all(&png_bytes).unwrap();
+            zw.finish().unwrap();
+        }
+        assert_eq!(
+            load_thumbnail(&zip_path, 64).map(|(w, h, _)| (w, h)),
+            Some((32, 24))
+        );
+
+        // MP3 with ID3v2.3 APIC frame holding PNG art.
+        let mp3_path = dir.path().join("song.mp3");
+        {
+            let mut apic = Vec::new();
+            apic.push(0); // UTF-8/ISO encoding
+            apic.extend_from_slice(b"image/png\0");
+            apic.push(3); // cover front
+            apic.push(0); // empty description
+            apic.extend_from_slice(&png_bytes);
+            let mut id3 = Vec::new();
+            id3.extend_from_slice(b"ID3\x03\x00\x00");
+            let total = 10 + apic.len();
+            let ss = [
+                ((total >> 21) & 0x7f) as u8,
+                ((total >> 14) & 0x7f) as u8,
+                ((total >> 7) & 0x7f) as u8,
+                (total & 0x7f) as u8,
+            ];
+            id3.extend_from_slice(&ss);
+            id3.extend_from_slice(b"APIC");
+            id3.extend_from_slice(&(apic.len() as u32).to_be_bytes());
+            id3.extend_from_slice(&[0, 0]);
+            id3.extend_from_slice(&apic);
+            std::fs::write(&mp3_path, &id3).unwrap();
+        }
+        assert_eq!(
+            load_thumbnail(&mp3_path, 64).map(|(w, h, _)| (w, h)),
+            Some((32, 24))
+        );
+
+        // Minimal synthetic PE32 executable with an RT_ICON PNG resource at 0x1000.
+        let exe_path = dir.path().join("app.exe");
+        {
+            let mut pe = vec![0u8; 512];
+            pe[0..2].copy_from_slice(b"MZ");
+            pe[0x3c..0x40].copy_from_slice(&0x80u32.to_le_bytes());
+            let p = 0x80usize;
+            pe[p..p + 4].copy_from_slice(b"PE\0\0");
+            pe[p + 6..p + 8].copy_from_slice(&1u16.to_le_bytes()); // 1 section
+            pe[p + 20..p + 22].copy_from_slice(&224u16.to_le_bytes()); // optional hdr size
+            let opt = p + 24;
+            pe[opt..opt + 2].copy_from_slice(&0x10bu16.to_le_bytes()); // PE32
+            pe[opt + 96 + 16..opt + 96 + 20].copy_from_slice(&0x1000u32.to_le_bytes()); // rsrc RVA
+            let sec = opt + 224;
+            pe[sec..sec + 5].copy_from_slice(b".rsrc");
+            let mut rsrc = Vec::new();
+            // Root dir (16 bytes) + 1 id entry (8): id=3 (RT_ICON) -> subdir at 24
+            rsrc.extend_from_slice(&[0u8; 14]);
+            rsrc.extend_from_slice(&1u16.to_le_bytes());
+            rsrc.extend_from_slice(&3u32.to_le_bytes());
+            rsrc.extend_from_slice(&(0x8000_0000u32 | 24).to_le_bytes());
+            // Level 2 dir at 24 (16 bytes) + 1 id entry (8): id=1 -> subdir at 48
+            rsrc.extend_from_slice(&[0u8; 14]);
+            rsrc.extend_from_slice(&1u16.to_le_bytes());
+            rsrc.extend_from_slice(&1u32.to_le_bytes());
+            rsrc.extend_from_slice(&(0x8000_0000u32 | 48).to_le_bytes());
+            // Level 3 dir at 48 (16 bytes) + 1 id entry (8): lang=1033 -> data entry at 72
+            rsrc.extend_from_slice(&[0u8; 14]);
+            rsrc.extend_from_slice(&1u16.to_le_bytes());
+            rsrc.extend_from_slice(&1033u32.to_le_bytes());
+            rsrc.extend_from_slice(&72u32.to_le_bytes());
+            // Data entry at 72 (16 bytes): RVA = 0x1000 + 88
+            rsrc.extend_from_slice(&(0x1000u32 + 88).to_le_bytes());
+            rsrc.extend_from_slice(&(png_bytes.len() as u32).to_le_bytes());
+            rsrc.extend_from_slice(&0u64.to_le_bytes());
+            rsrc.extend_from_slice(&png_bytes);
+            pe[sec + 8..sec + 12].copy_from_slice(&(rsrc.len() as u32).to_le_bytes());
+            pe[sec + 12..sec + 16].copy_from_slice(&0x1000u32.to_le_bytes());
+            pe[sec + 16..sec + 20].copy_from_slice(&(rsrc.len() as u32).to_le_bytes());
+            pe[sec + 20..sec + 24].copy_from_slice(&512u32.to_le_bytes());
+            pe.extend_from_slice(&rsrc);
+            std::fs::write(&exe_path, &pe).unwrap();
+        }
+        assert_eq!(
+            load_thumbnail(&exe_path, 64).map(|(w, h, _)| (w, h)),
+            Some((32, 24))
+        );
+
+        // Disabling thumbnails clears cache and stops lookups.
+        let ctx = egui::Context::default();
+        set_thumbnails_enabled(false);
+        assert!(!thumbnails_enabled());
+        assert!(thumbnail(&ctx, &jpg_path).is_none());
+        assert!(load_thumbnail(&jpg_path, 64).is_none());
+        set_thumbnails_enabled(true);
+    }
+
+    #[test]
+    fn thumbnail_cache_evicts_oldest_entries_beyond_cap() {
+        let mut c = ThumbCache::default();
+        for i in 0..(MAX_THUMBNAILS + 5) {
+            evict_lru(&mut c);
+            let p = std::path::PathBuf::from(format!("file-{i}.png"));
+            c.items.insert(p.clone(), Some(None));
+            c.order.push_back(p);
+        }
+        assert!(c.items.len() <= MAX_THUMBNAILS);
+        assert!(
+            !c.items
+                .contains_key(&std::path::PathBuf::from("file-0.png"))
+        );
     }
 }

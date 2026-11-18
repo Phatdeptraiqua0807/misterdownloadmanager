@@ -151,7 +151,7 @@
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 	&Apply	적&용
-#. text in the Scheduler window
+#. text in the Scheduler window; button in standard windows
 #. verb: close the window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -454,7 +454,7 @@
 #. item in the Categories tree in the main window
 #, machine
 	All Downloads	모든 다운로드
-#. message or event log entry in the main window
+#. message or event log entry in the main window; text in standard windows
 #, machine
 	All files	모든 파일
 #. text in helpers.rs
@@ -923,7 +923,9 @@
 #. the list's Status column while a torrent's files or a finished file are checked (against the torrent's hashes or a checksum); {percent} how much is checked, e.g. "42%". One short word: the column is narrow
 #, machine
 	Checking {percent}	확인 중 {percent}
-#. text in the Checksum window; text in the Link grabber window
+#. text in the Checksum window; text in extension.rs; text in the Link grabber window; text in the Options window
+#. in the browser extension's window, while it reads whether the browsers can reach MDM (a moment, usually)
+#. Test browser integration, while it reads where browser integration stands (a moment, usually)
 #. the trailing ... means it is still going on: keep it
 #, machine
 	Checking...	확인 중...
@@ -957,7 +959,7 @@
 #. a country's name (where a download's server is)
 #, machine
 	Christmas Island	크리스마스섬
-#. button in the download list
+#. button in the download list; button in the Options window
 #. verb: clears this filter
 #, machine
 	Clear	지우기
@@ -1179,7 +1181,7 @@
 #. text in the Options window
 #, machine
 	Default max. conn. number	기본 최대 연결 수
-#. message or event log entry in the main window; button in a dialog box; button in the Options window; button in rssdlg.rs
+#. text in the main window's messages (deleting downloads' files); button in a dialog box; button in the Options window; button in rssdlg.rs
 #. button: deletes the category
 #. verb: delete the item
 #, machine
@@ -1728,6 +1730,11 @@
 #. checkbox in the Find window
 #, machine
 	File name or part of the name	파일 이름 또는 이름의 일부
+#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
+#. a download's status (state it is in, not a command)
+#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
+#, machine
+	File not found	파일을 찾을 수 없음
 #. window title in a download's Properties window
 #, machine
 	File Properties	파일 속성
@@ -2751,7 +2758,7 @@
 #. text in crashui.rs
 #, machine
 	Mister Download Manager crash report	Mister Download Manager 크래시 보고서
-#. text in crashui.rs
+#. text in crashui.rs; text in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. crash report window heading: an internal error, MDM still running
 #, machine
 	Mister Download Manager hit an internal error	Mister Download Manager에 내부 오류가 발생했습니다.
@@ -2834,9 +2841,6 @@
 #. what a keyboard shortcut does in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #, machine
 	Move a page up / down	페이지 위/아래로 이동
-#. what a keyboard shortcut does in the Help menu's windows (About, updates, shortcuts, Tell a friend)
-#, machine
-	Move between the categories and the download list	범주와 다운로드 목록 간 이동
 #. text in the Scheduler window
 #, machine
 	Move down	아래로 이동
@@ -3090,7 +3094,7 @@
 #. message or event log entry in the main window
 #, machine
 	No web addresses were found in {file}.	{file}에서 웹 주소를 찾을 수 없습니다.
-#. text in the Download video window
+#. text in the Options window; text in the Download video window
 #. in the Subtitles list of Download video: download no subtitles
 #, machine
 	None	없음
@@ -3148,10 +3152,10 @@
 #, machine
 	Not in a queue	큐에 없음
 #. text in helpers.rs
-#. Video helpers: no copy of this helper yet
 #, machine
 	Not installed yet	아직 설치되지 않음
-#. button in helpers.rs
+#. text in cnl.rs; button in helpers.rs
+#. button in the Click'n'Load window: refuse these links, ask again next time
 #, machine
 	Not now	나중에
 #. text in helpers.rs
@@ -3299,7 +3303,9 @@
 #. button that opens the torrent's containing folder in the file manager
 #, machine
 	Open folder	폴더 열기
-#. text in a download's progress window
+#. text in the Link grabber window; text in a download's progress window
+#. Link grabber, a link's status: the remedy from the failure's sentence, for a site link that is a web page, not the file (and a server that sent a web page instead of it). The sentence is the cell's hover tip
+#. Link grabber, a link's status: the remedy from the failure's sentence, for a server that sent a web page instead of the file. The sentence is the cell's hover tip
 #. button in a download's progress window when the site sent a web page (a waiting page, a captcha) instead of the file: opens the download's link in the web browser
 #, machine
 	Open in browser	브라우저에서 열기
@@ -3417,6 +3423,7 @@
 	Password	암호
 #. text in the Link grabber window; text in the Options window
 #. Link grabber: the package's archives' password (a label before its box)
+#. Options → Add an account: label before the field for the password at the debrid service
 #, machine
 	Password:	암호:
 #. text in the Add torrent window
@@ -3692,8 +3699,9 @@
 #. {name} = a file name (keep the braces as they are)
 #, machine
 	Remove {name} from the list?	목록에서 {name}을(를) 제거하시겠습니까?
-#. text in a download's progress window
+#. text in a download's progress window; text in torrent_rename.rs
 #. noun: label before the deferred new file or folder name in the progress window
+#. noun: label before the new file or folder name in Add torrent
 #, machine
 	Rename	이름 바꾸기
 #. text in the Batch download window
@@ -3857,10 +3865,6 @@
 #. text in the Batch download window
 #, machine
 	Second file:	두 번째 파일:
-#. text in a dialog box
-#. title of the folder picker
-#, machine
-	Select a folder	폴더 선택
 #. button in playlistdlg.rs; button in the Add torrent window; text in torrentfiles.rs
 #. button in Download video for a playlist: tick every video
 #, machine
@@ -4674,9 +4678,6 @@
 #. why an archive wasn't extracted (after "Couldn't extract {name}: ")
 #, machine
 	the password is wrong	암호가 잘못되었습니다.
-#. text in errors.rs
-#, machine
-	the path is too long for Windows: {path}	Windows에 경로가 너무 깁니다: {path}
 #. text in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. why updates could not be checked: the newest release on the site has no number
 #, machine
@@ -4754,6 +4755,10 @@
 #. the Download video window: the site's bot check (Cloudflare) turned yt-dlp away and no browser cookies were used
 #, machine
 	The site's bot check (Cloudflare) refused yt-dlp. If the page opens in your browser, choose that browser in Options → Sites Logins → Cookies for video sites and look the page up again, or use the Download video button over the video.	사이트의 봇 확인(Cloudflare)에서 yt-dlp를 거부했습니다. 브라우저에서 페이지가 열리면 옵션 → 사이트 로그인 → 동영상 사이트용 쿠키에서 해당 브라우저를 선택하고 페이지를 다시 찾아보거나 동영상 위에 있는 동영상 다운로드 버튼을 사용하세요.
+#. text in the Download video window
+#. the Download video window: the site's certificate is trusted neither by yt-dlp nor by the computer (asked again with the computer's certificates, #955); usually an antivirus or a proxy that reads secure (HTTPS) connections signs sites with a certificate of its own
+#, machine
+	The site's certificate isn't trusted, by yt-dlp nor by this computer: an antivirus's web filter or a proxy that reads HTTPS may be in the way. Turn its HTTPS scanning off, or add its certificate to the computer's, then look the page up again.	yt-dlp와 이 컴퓨터 모두 사이트의 인증서를 신뢰하지 않습니다. 백신 프로그램의 웹 필터 또는 HTTPS를 읽는 프록시가 방해할 수 있습니다. HTTPS 검사를 끄거나 해당 인증서를 컴퓨터의 인증서 저장소에 추가한 다음 페이지를 다시 조회하세요.
 #. text in errors.rs
 #. why a download failed: the site's security certificate (what proves a secure, HTTPS, site is the one it says) is past its end date. Browsers warn about the same site
 #, machine
@@ -4762,6 +4767,10 @@
 #. why a download failed: the site's security certificate was made for other site names than the one in the address
 #, machine
 	the site's security certificate is for another site name, so MDM can't be sure it's the real site (your browser warns about it too)	사이트의 보안 인증서가 다른 사이트 이름용이므로 MDM에서 실제 사이트인지 확인할 수 없습니다(브라우저에서도 경고합니다).
+#. text in errors.rs
+#. why a download failed: the site's security certificate is made for other uses than a website (its "extended key usage" leaves out web servers)
+#, machine
+	the site's security certificate isn't made for websites, so MDM can't be sure it's the real site	사이트의 보안 인증서가 웹 사이트용으로 만들어지지 않아 MDM이 실제 사이트인지 확인할 수 없습니다.
 #. text in errors.rs
 #. why a download failed: the site's security certificate was signed by the site itself or by an issuer this computer doesn't trust. Browsers warn about the same site
 #, machine
@@ -4778,14 +4787,6 @@
 #. why a download failed: the issuer of the site's security certificate took it back
 #, machine
 	the site's security certificate was revoked by its issuer, so MDM won't trust it	사이트의 보안 인증서가 발급자에 의해 취소되어 MDM에서 신뢰하지 않습니다.
-#. text in the Download video window
-#. the Download video window: the site's certificate is trusted neither by yt-dlp nor by the computer (asked again with the computer's certificates, #955); usually an antivirus or a proxy that reads secure (HTTPS) connections signs sites with a certificate of its own
-#, machine
-	The site's certificate isn't trusted, by yt-dlp nor by this computer: an antivirus's web filter or a proxy that reads HTTPS may be in the way. Turn its HTTPS scanning off, or add its certificate to the computer's, then look the page up again.	yt-dlp와 이 컴퓨터 모두 사이트의 인증서를 신뢰하지 않습니다. 백신 프로그램의 웹 필터 또는 HTTPS를 읽는 프록시가 방해할 수 있습니다. HTTPS 검사를 끄거나 해당 인증서를 컴퓨터의 인증서 저장소에 추가한 다음 페이지를 다시 조회하세요.
-#. text in errors.rs
-#. why a download failed: the site's security certificate is made for other uses than a website (its "extended key usage" leaves out web servers)
-#, machine
-	the site's security certificate isn't made for websites, so MDM can't be sure it's the real site	사이트의 보안 인증서가 웹 사이트용으로 만들어지지 않아 MDM이 실제 사이트인지 확인할 수 없습니다.
 #. text in crashui.rs
 #. crash report window: the symbols couldn't be downloaded; the report still works
 #, machine
@@ -5062,7 +5063,7 @@
 #. title of the separate window listing a torrent's files
 #, machine
 	Torrent files	토렌트 파일
-#. window title in the Add torrent window
+#. message or event log entry in the main window; window title in the Add torrent window
 #, machine
 	Torrent settings	토렌트 설정
 #. text in torrent downloads
@@ -5624,7 +5625,7 @@
 #, machine
 	Your own program: {path} ({version})	사용자 프로그램: {path} ({version})
 #. text in helpers.rs
-#. Video helpers (macOS, Linux): {path} = the system's ffmpeg
+#. Video helpers: {path} = the system's yt-dlp, ffmpeg or gallery-dl
 #, machine
 	Your system's: {path}	시스템: {path}
 #. text in the Download video window
@@ -5751,7 +5752,8 @@
 #. a kind of file, by its extension: {ext} = "ZIP", "PDF"…
 #, machine
 	{ext} File	{ext} 파일
-#. message or event log entry in the main window
+#. text in the main window's messages (deleting downloads' files)
+#. a message: a deleted download's file stayed on the disk; {file} = its name
 #. {error} = an error message (keep the braces as they are)
 #, machine
 	{file} could not be deleted from the disk: {error}	디스크에서 {file}을 삭제할 수 없습니다: {error}
@@ -5770,9 +5772,6 @@
 #. {size} = a file size such as "4.2 MB" (keep the braces as they are)
 #, machine
 	{file} is too large to be a list of addresses ({size}). Import reads text files, web pages and .ef2 exports of up to {limit}.	{file}은(는) 주소 목록으로 사용하기에는 너무 큽니다({size}). 가져오기는 최대 {limit} 크기의 텍스트 파일, 웹 페이지 및 .ef2 내보내기를 읽습니다.
-#. text in a dialog box
-#, machine
-	{file} was moved elsewhere by dragging it out of Download complete, and MDM couldn't learn where. Look for it where you dropped it.	{file}을(를) 다운로드 완료 목록에서 끌어내 다른 곳으로 옮겼지만, MDM이 위치를 확인하지 못했습니다. 놓은 위치에서 찾아보세요.
 #. text in the Checksum window
 #. {algorithm} = a checksum algorithm such as "SHA-256" (keep the braces as they are)
 #, machine
@@ -6561,10 +6560,6 @@ key	Shift+Up / Shift+Down	Shift+위쪽 / Shift+아래쪽
 #. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
 #, machine
-key	Tab	Tab
-#. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
-#. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
-#, machine
 key	Type a name	이름 입력
 #. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
@@ -6615,6 +6610,7 @@ menu	&Exit	끝내기(&E)
 menu	&Import	가져오기(&I)
 #. menu command in the main window
 #. View menu: submenu choosing how large MDM draws its windows and text (100 % to 200 %), as a browser's zoom
+#. View → Interface size: percentage step in a submenu
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Interface size	인터페이스 &크기
@@ -6675,6 +6671,11 @@ menu	&Scheduler and queues	스케줄러 및 큐(&S)
 #, machine
 menu	&Show hidden tabs	숨겨진 탭 표시(&S)
 #. menu command in the main window
+#. View → File icons: show only simple generic file-type icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Simple icons	단순 아이콘(&S)
+#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6687,6 +6688,11 @@ menu	&Stop All	모두 중지(&S)
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Stop Download	다운로드 중지(&S)
+#. menu command in the main window
+#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Thumbnails and file icons	썸네일 및 파일 아이콘(&T)
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6896,6 +6902,11 @@ menu	Emerald	에메랄드
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 #, machine
 menu	Extract	압축 해제
+#. menu command in the main window
+#. View menu: submenu choosing between per-file thumbnails and simple icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	File &icons	파일 아이콘(&I)
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it
@@ -7162,7 +7173,7 @@ menu	To &IDM export file...	IDM 내보내기 파일(&I)...
 #. the trailing ... means it opens a window: keep it
 #, machine
 menu	To &text file...	텍스트 파일(&T)...
-#. menu command in the main window
+#. menu command in the main window; menu command in the main window (menus, toolbar, Categories pane)
 #. noun: the toolbar (submenu of View with its settings)
 #, machine
 menu	Toolbar	도구 모음

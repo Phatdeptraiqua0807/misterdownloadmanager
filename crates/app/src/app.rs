@@ -502,8 +502,6 @@ enum Cmd {
     ToggleDarkMode,
     /// View → Always dark (#60).
     ToggleAlwaysDark,
-    /// View → Show file thumbnails.
-    ToggleThumbnails,
     /// View → Theme → a theme (#45): a built-in's id or a theme file's name.
     Theme(&'static str),
     /// View → Theme → Open themes folder.
@@ -523,6 +521,8 @@ enum Cmd {
     /// View → Text → Smooth (`true`) or Classic (Windows).
     #[cfg(windows)]
     SmoothText(bool),
+    /// View → File icons → Thumbnails and file icons (`true`) or Simple icons (`false`).
+    FileThumbnails(bool),
     /// View → Language: a catalog's code, or follow Windows (`None`).
     Language(Option<&'static str>),
     /// View → Language...: the language picker.
@@ -1304,8 +1304,6 @@ pub struct App {
     gone_known: Option<(u64, PathBuf, bool)>,
     /// Background check of whether finished downloads' files still exist on disk.
     missing_check: Option<std::sync::mpsc::Receiver<Vec<(u64, PathBuf, bool)>>>,
-    /// When the last missing-file check ran (throttles focus-triggered checks).
-    missing_checked_at: Option<Instant>,
     /// The unfinished downloads' resume states, read beside the window at start
     /// (`read_resume_states`).
     state_reads: crate::resumeread::StateReads,
@@ -1915,6 +1913,7 @@ impl App {
             std::sync::Arc::new(crate::resumeread::from_disk),
             move || repaint.request_repaint(),
         );
+        crate::fileicons::set_thumbnails_enabled(app.settings.file_thumbnails);
         app.check_missing_files(ctx);
         app.lang_picker = ask_language.then(|| crate::langpick::Picker::new(true, None));
         app.remote = remote;
@@ -2057,7 +2056,6 @@ impl App {
             }),
             gone_known: None,
             missing_check: None,
-            missing_checked_at: None,
             state_reads: Default::default(),
             video_places: crate::videoplace::VideoPlaces::new(std::sync::Arc::new(video_place)),
             queue_pick: None,
@@ -2412,10 +2410,7 @@ impl App {
                 // i18n: a download's status (state it is in, not a command): it failed
                 Status::Error => "Error",
             },
-            icon: if self.settings.show_thumbnails
-                && it.status == Status::Complete
-                && !it.is_file_missing()
-            {
+            icon: if it.status == Status::Complete && !it.is_file_missing() {
                 IconKey::File(it.dest.clone())
             } else {
                 file_icon(&it.file_name)
@@ -4947,6 +4942,7 @@ impl App {
             );
             return;
         }
+        self.check_missing_files(&self.ui_ctx.clone());
         let route = self.debrid_route();
         if let Some(item) = self.items.iter().find(|i| i.id == id) {
             self.properties
@@ -7667,11 +7663,6 @@ impl App {
                 self.theme_checked = None;
                 self.dirty = true;
             }
-            Cmd::ToggleThumbnails => {
-                self.settings.show_thumbnails = !self.settings.show_thumbnails;
-                self.dirty = true;
-                ctx.request_repaint();
-            }
             Cmd::Theme(id) => {
                 self.settings.theme = id.to_owned();
                 crate::theme::select(id, ctx);
@@ -7719,6 +7710,12 @@ impl App {
                 crate::theme::set_smooth_text(ctx, on);
                 self.settings.smooth_text = on;
                 self.dirty = true;
+            }
+            Cmd::FileThumbnails(on) => {
+                crate::fileicons::set_thumbnails_enabled(on);
+                self.settings.file_thumbnails = on;
+                self.dirty = true;
+                ctx.request_repaint();
             }
             #[cfg(gpu)]
             Cmd::DrawWith(api) => {
@@ -8525,13 +8522,7 @@ impl App {
                     true,
                     self.settings.always_dark,
                 ),
-                I(
-                    // i18n: View menu: a check item; show file thumbnails (and per-file icons) in the download list and Properties
-                    "Show file &thumbnails",
-                    Cmd::ToggleThumbnails,
-                    true,
-                    self.settings.show_thumbnails,
-                ),
+                self.file_icons_menu(),
                 // i18n: noun: the list's font (submenu)
                 Sub("Font", false, vec![]),
                 Sep,
@@ -8671,7 +8662,35 @@ impl App {
             })
             .collect();
         // i18n: View menu: submenu choosing how large MDM draws its windows and text (100 % to 200 %), as a browser's zoom
+        // i18n: View → Interface size: percentage step in a submenu
         MenuEntry::Sub("&Interface size", true, items)
+    }
+
+    /// View → File icons: choose between per-file thumbnails / embedded icons and simple icons.
+    fn file_icons_menu(&self) -> MenuEntry<Cmd> {
+        let on = self.settings.file_thumbnails;
+        // i18n: View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
+        let a = MenuEntry::Radio(
+            "&Thumbnails and file icons",
+            Cmd::FileThumbnails(true),
+            true,
+            on,
+        );
+        // i18n: View → File icons: show only simple generic file-type icons
+        let b = MenuEntry::Radio("&Simple icons", Cmd::FileThumbnails(false), true, !on);
+        // i18n: View menu: submenu choosing between per-file thumbnails and simple icons
+        MenuEntry::Sub("File &icons", true, vec![a, b])
+    }
+
+    /// View → File icons: choose between per-file thumbnails / embedded icons and simple icons.
+    fn file_icons_menu(&self) -> MenuEntry<Cmd> {
+        let on = self.settings.file_thumbnails;
+        // i18n: View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
+        let a = MenuEntry::Radio("&Thumbnails and file icons", Cmd::FileThumbnails(true), true, on);
+        // i18n: View → File icons: show only simple generic file-type icons
+        let b = MenuEntry::Radio("&Simple icons", Cmd::FileThumbnails(false), true, !on);
+        // i18n: View menu: submenu choosing between per-file thumbnails and simple icons
+        MenuEntry::Sub("File &icons", true, vec![a, b])
     }
 
     /// View → Text (Windows): how the letters are drawn. Smooth is DirectWrite's natural look
@@ -10163,8 +10182,8 @@ impl App {
         }
     }
 
-    /// Check off the UI thread whether finished downloads' files are missing while their parent
-    /// folder is still present (`model::finished_file_gone`, #342).
+    /// Check off the UI thread whether finished downloads' files are still at `item.dest`
+    /// (#342: only counts as missing when the parent folder still exists).
     fn check_missing_files(&mut self, ctx: &egui::Context) {
         if self.missing_check.is_some() {
             return;
@@ -10172,21 +10191,21 @@ impl App {
         let targets: Vec<(u64, PathBuf)> = self
             .items
             .iter()
-            .filter(|i| i.status == Status::Complete && i.live.is_none())
+            .filter(|i| i.status == Status::Complete && i.live.is_none() && !i.moved_away)
             .map(|i| (i.id, i.dest.clone()))
             .collect();
         if targets.is_empty() {
             return;
         }
-        self.missing_checked_at = Some(Instant::now());
         let (tx, rx) = std::sync::mpsc::channel();
         self.missing_check = Some(rx);
+        let check = self.gone_check.clone();
         let repaint = ctx.clone();
         crate::launch::spawn("check files", move || {
             let results: Vec<(u64, PathBuf, bool)> = targets
                 .into_iter()
                 .map(|(id, dest)| {
-                    let missing = model::finished_file_gone(Status::Complete, &dest);
+                    let missing = check(&dest);
                     (id, dest, missing)
                 })
                 .collect();
@@ -11561,12 +11580,11 @@ impl App {
         let mut files_requested = Vec::new();
         let items = &self.items;
         let icons = &mut self.icons;
-        let show_thumbnails = self.settings.show_thumbnails;
         self.properties.retain_mut(|pr| {
             let Some(item) = items.iter().find(|i| i.id == pr.id) else {
                 return false;
             };
-            match pr.show(ctx, icons, item, show_thumbnails) {
+            match pr.show(ctx, icons, item) {
                 Outcome::Open => {
                     if pr.take_files_requested() {
                         files_requested.push(pr.id);
@@ -11696,36 +11714,6 @@ impl App {
                         self.settings.torrent_upload_kb,
                     ) = upload;
                     // Seeding limits: the tick stops those over them; raised, the finished
-                    // torrents now under them are shared again (when sharing stays on).
-                    let s = &mut self.settings;
-                    let before = s.sharing_limits();
-                    s.torrent_stop_ratio_on = seeding.ratio_on;
-                    s.torrent_stop_ratio = seeding.ratio;
-                    s.torrent_stop_minutes_on = seeding.minutes_on;
-                    s.torrent_stop_minutes = seeding.minutes;
-                    if share
-                        && share == self.settings.torrent_keep_sharing
-                        && before != self.settings.sharing_limits()
-                    {
-                        self.torrent_host.set_sharing(
-                            &self.rt,
-                            self.session_hashes(),
-                            self.complete_torrents(),
-                            true,
-                        );
-                    }
-                    if share != self.settings.torrent_keep_sharing {
-                        self.settings.torrent_keep_sharing = share;
-                        self.torrent_host.set_sharing(
-                            &self.rt,
-                            self.session_hashes(),
-                            self.complete_torrents(),
-                            share,
-                        );
-                    }
-                    if Some(assoc) != self.settings.torrent_associations {
-                        self.settings.torrent_associations = Some(assoc);
-                        // Not from an instance off the screens (a test's), as at start.
                         if !crate::offscreen() {
                             #[cfg(windows)]
                             crate::win32::set_torrent_handlers(assoc);
@@ -12370,19 +12358,6 @@ impl App {
         self.apply_video_places();
         self.apply_gone_looks(ctx);
         self.apply_missing_files(ctx);
-        if !self.headless
-            && self
-                .missing_checked_at
-                .is_none_or(|t| t.elapsed() >= Duration::from_secs(5))
-            && ctx.input(|i| {
-                i.raw
-                    .events
-                    .iter()
-                    .any(|e| matches!(e, egui::Event::WindowFocused(true)))
-            })
-        {
-            self.check_missing_files(ctx);
-        }
         self.poll(ctx);
         crate::crash::step(crate::crash::Step::RemoteTorrents);
         self.poll_remote_torrents();
@@ -12463,6 +12438,13 @@ impl App {
         self.drop_target(&ctx);
         self.main_drops(&ctx);
         self.remember_layout(&ctx);
+        if ui.input(|i| {
+            i.events
+                .iter()
+                .any(|e| matches!(e, egui::Event::WindowFocused(true)))
+        }) {
+            self.check_missing_files(&ctx);
+        }
         // Light or dark: IDM follows Windows' app mode (checked every 2 s) unless View → Dark
         // Mode support is off. Switches live (IDM asks to restart). On Linux the desktop's own
         // change wakes a frame, and the check runs in it rather than at its next 2 s (#156).
@@ -15401,7 +15383,7 @@ mod start_disk_tests {
         let dir = tempfile::tempdir().unwrap();
         let present = dir.path().join("present.png");
         let deleted = dir.path().join("deleted.bin");
-        let unplugged = dir.path().join("offline_drive").join("remote.bin");
+        let unplugged = dir.path().join("unplugged").join("file.bin");
         std::fs::write(&present, b"ok").unwrap();
         let mut app = app_with(vec![
             row(1, present.clone(), Status::Complete),
@@ -15419,7 +15401,7 @@ mod start_disk_tests {
         assert!(get(&app, 2).is_file_missing());
         assert!(
             !get(&app, 3).is_file_missing(),
-            "missing parent folder (e.g. unplugged drive) must not mark file missing"
+            "missing parent folder (unplugged drive) does not mark file missing"
         );
 
         let queued = std::collections::HashSet::new();
@@ -15430,9 +15412,5 @@ mod start_disk_tests {
         assert_eq!(r2.status_group, "File not found");
         assert_eq!(r2.cells[list::STATUS], "File not found");
         assert!(matches!(r2.icon, IconKey::Ext(_)));
-
-        app.settings.show_thumbnails = false;
-        let r1_simple = app.row(get(&app, 1), &queued, 0);
-        assert!(matches!(r1_simple.icon, IconKey::Ext(_)));
     }
 }

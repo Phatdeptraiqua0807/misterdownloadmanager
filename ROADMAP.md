@@ -1452,6 +1452,10 @@ These ship in the next version.
   when its stream's address is signed for each load (it was downloaded again without a word)
 - ✅ Telegram Web's downloads stay with the browser, which makes them in the page
   ([#1345](https://github.com/anefzaoui/misterdownloadmanager/issues/1345))
+- ✅ File thumbnails and embedded icons (images, programs, audio cover art, archives) in the
+  download list and File Properties with a hover preview and a **View → File icons** switch,
+  themed status icons, and **File not found** when a finished download's file was deleted from its
+  folder (thanks to [@Phatdeptraiqua0807](https://github.com/Phatdeptraiqua0807))
 
 ## Being worked on
 

@@ -54,6 +54,7 @@ serde_json.workspace = true
 toml.workspace = true
 tokio.workspace = true
 url.workspace = true
+zip = { version = "9.1.3", default-features = false, features = ["deflate"] }
 percent-encoding.workspace = true
 rfd = "0.17.2"
 # Options → Remote → Pair a device's QR code of the address (#141; Nayuki's, no dependencies).

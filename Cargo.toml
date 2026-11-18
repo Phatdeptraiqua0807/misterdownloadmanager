@@ -45,7 +45,7 @@ skrifa = { version = "0.44.0", default-features = false, features = ["std"] }
 # system's own choice (DirectWrite, CoreText) through fontique, in the same egui fork; the font
 # files are mapped, not read into memory.
 egui_system_font_provider = { git = "https://github.com/anefzaoui/egui.git", rev = "268d8e55dae56a536b672bdb75987021931dfcb2" }
-image = { version = "0.25.10", default-features = false, features = ["png"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "bmp", "ico", "tiff", "tga", "pnm", "hdr", "dds"] }
 dirs = "7.0.0"
 # Gzipped IP blocklists, read to convert them for librqbit (crates/torrent blocklist.rs).
 flate2 = "1.1.10"

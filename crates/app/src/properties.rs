@@ -72,7 +72,6 @@ impl Properties {
         ctx: &egui::Context,
         icons: &mut ShellIcons,
         item: &Item,
-        show_thumbnails: bool,
     ) -> Outcome<Changes> {
         let outcome = window(
             ctx,
@@ -81,7 +80,7 @@ impl Properties {
             [477.0, 420.0],
             false,
             LIGHT_BG(),
-            |ui, o| self.body(ui, o, icons, item, show_thumbnails),
+            |ui, o| self.body(ui, o, icons, item),
         );
         match outcome {
             Outcome::Done(()) => {
@@ -122,14 +121,7 @@ impl Properties {
             || url::Url::parse(self.address.trim()).is_ok_and(|u| mdm_engine::supported(&u))
     }
 
-    fn body(
-        &mut self,
-        ui: &mut Ui,
-        o: Pos2,
-        icons: &mut ShellIcons,
-        item: &Item,
-        show_thumbnails: bool,
-    ) -> Outcome<()> {
+    fn body(&mut self, ui: &mut Ui, o: Pos2, icons: &mut ShellIcons, item: &Item) -> Outcome<()> {
         let p = ui.painter().clone();
         let complete = item.status == Status::Complete;
         let running = item.live.is_some();
@@ -148,21 +140,21 @@ impl Properties {
             .map(|e| e.to_string_lossy().to_ascii_lowercase())
             .unwrap_or_default();
         let missing = item.is_file_missing();
-        let use_thumb = show_thumbnails && complete && !missing;
-        let icon_key = if use_thumb {
+        let icon_key = if complete && !missing {
             IconKey::FileLarge(item.dest.clone())
         } else {
             IconKey::ExtLarge(ext.clone())
         };
         icons.paint(ui, icon_key, o + vec2(11.0, 11.0));
         let icon_rect = r(o, 11.0, 11.0, 32.0, 32.0);
-        if use_thumb
+        if complete
+            && !missing
             && ui
                 .ctx()
                 .pointer_hover_pos()
                 .is_some_and(|pos| icon_rect.contains(pos))
         {
-            crate::fileicons::show_thumbnail_preview(ui.ctx(), &item.dest, &item.file_name);
+            crate::fileicons::show_thumbnail_preview(ui, &item.dest, &item.file_name);
         }
         let fit = |ui: &mut Ui, x: f32, base: f32, s: &str, color: egui::Color32| {
             let (rect, cut) = winui::text_fit(&p, o.x + x, o.y + base, s, color, o.x + 466.0);

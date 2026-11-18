@@ -5156,6 +5156,7 @@ menu	&Exit	&Exit
 menu	&Import	&Import
 #. menu command in the main window
 #. View menu: submenu choosing how large MDM draws its windows and text (100 % to 200 %), as a browser's zoom
+#. View → Interface size: percentage step in a submenu
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Interface size	&Interface size
 #. menu command in the main window
@@ -5203,6 +5204,10 @@ menu	&Scheduler and queues	&Scheduler and queues
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Show hidden tabs	&Show hidden tabs
 #. menu command in the main window
+#. View → File icons: show only simple generic file-type icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+menu	&Simple icons	&Simple icons
+#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Smooth	&Smooth
@@ -5212,6 +5217,10 @@ menu	&Stop All	&Stop All
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Stop Download	&Stop Download
+#. menu command in the main window
+#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+menu	&Thumbnails and file icons	&Thumbnails and file icons
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Tray icon	&Tray icon
@@ -5378,6 +5387,10 @@ menu	Emerald	Emerald
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 menu	Extract	Extract
 #. menu command in the main window
+#. View menu: submenu choosing between per-file thumbnails and simple icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+menu	File &icons	File &icons
+#. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it
 menu	Files...	Files...
@@ -5538,10 +5551,6 @@ menu	Select &all	Select &all
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	Show &drop target	Show &drop target
-#. menu command in the main window
-#. View menu: a check item; show file thumbnails (and per-file icons) in the download list and Properties
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-menu	Show file &thumbnails	Show file &thumbnails
 #. menu command in the main window
 menu	Show Mister Download Manager	Show Mister Download Manager
 #. menu command in the main window
