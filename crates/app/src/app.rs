@@ -502,6 +502,8 @@ enum Cmd {
     ToggleDarkMode,
     /// View → Always dark (#60).
     ToggleAlwaysDark,
+    /// View → Show file thumbnails.
+    ToggleThumbnails,
     /// View → Theme → a theme (#45): a built-in's id or a theme file's name.
     Theme(&'static str),
     /// View → Theme → Open themes folder.
@@ -1302,6 +1304,8 @@ pub struct App {
     gone_known: Option<(u64, PathBuf, bool)>,
     /// Background check of whether finished downloads' files still exist on disk.
     missing_check: Option<std::sync::mpsc::Receiver<Vec<(u64, PathBuf, bool)>>>,
+    /// When the last missing-file check ran (throttles focus-triggered checks).
+    missing_checked_at: Option<Instant>,
     /// The unfinished downloads' resume states, read beside the window at start
     /// (`read_resume_states`).
     state_reads: crate::resumeread::StateReads,
@@ -2053,6 +2057,7 @@ impl App {
             }),
             gone_known: None,
             missing_check: None,
+            missing_checked_at: None,
             state_reads: Default::default(),
             video_places: crate::videoplace::VideoPlaces::new(std::sync::Arc::new(video_place)),
             queue_pick: None,
@@ -2407,7 +2412,10 @@ impl App {
                 // i18n: a download's status (state it is in, not a command): it failed
                 Status::Error => "Error",
             },
-            icon: if it.status == Status::Complete && !it.is_file_missing() {
+            icon: if self.settings.show_thumbnails
+                && it.status == Status::Complete
+                && !it.is_file_missing()
+            {
                 IconKey::File(it.dest.clone())
             } else {
                 file_icon(&it.file_name)
@@ -7659,6 +7667,11 @@ impl App {
                 self.theme_checked = None;
                 self.dirty = true;
             }
+            Cmd::ToggleThumbnails => {
+                self.settings.show_thumbnails = !self.settings.show_thumbnails;
+                self.dirty = true;
+                ctx.request_repaint();
+            }
             Cmd::Theme(id) => {
                 self.settings.theme = id.to_owned();
                 crate::theme::select(id, ctx);
@@ -8511,6 +8524,13 @@ impl App {
                     Cmd::ToggleAlwaysDark,
                     true,
                     self.settings.always_dark,
+                ),
+                I(
+                    // i18n: View menu: a check item; show file thumbnails (and per-file icons) in the download list and Properties
+                    "Show file &thumbnails",
+                    Cmd::ToggleThumbnails,
+                    true,
+                    self.settings.show_thumbnails,
                 ),
                 // i18n: noun: the list's font (submenu)
                 Sub("Font", false, vec![]),
@@ -10143,7 +10163,8 @@ impl App {
         }
     }
 
-    /// Check off the UI thread whether finished downloads' files are still at `item.dest`.
+    /// Check off the UI thread whether finished downloads' files are missing while their parent
+    /// folder is still present (`model::finished_file_gone`, #342).
     fn check_missing_files(&mut self, ctx: &egui::Context) {
         if self.missing_check.is_some() {
             return;
@@ -10157,6 +10178,7 @@ impl App {
         if targets.is_empty() {
             return;
         }
+        self.missing_checked_at = Some(Instant::now());
         let (tx, rx) = std::sync::mpsc::channel();
         self.missing_check = Some(rx);
         let repaint = ctx.clone();
@@ -10164,7 +10186,7 @@ impl App {
             let results: Vec<(u64, PathBuf, bool)> = targets
                 .into_iter()
                 .map(|(id, dest)| {
-                    let missing = !dest.exists();
+                    let missing = model::finished_file_gone(Status::Complete, &dest);
                     (id, dest, missing)
                 })
                 .collect();
@@ -11539,11 +11561,12 @@ impl App {
         let mut files_requested = Vec::new();
         let items = &self.items;
         let icons = &mut self.icons;
+        let show_thumbnails = self.settings.show_thumbnails;
         self.properties.retain_mut(|pr| {
             let Some(item) = items.iter().find(|i| i.id == pr.id) else {
                 return false;
             };
-            match pr.show(ctx, icons, item) {
+            match pr.show(ctx, icons, item, show_thumbnails) {
                 Outcome::Open => {
                     if pr.take_files_requested() {
                         files_requested.push(pr.id);
@@ -12347,6 +12370,19 @@ impl App {
         self.apply_video_places();
         self.apply_gone_looks(ctx);
         self.apply_missing_files(ctx);
+        if !self.headless
+            && self
+                .missing_checked_at
+                .is_none_or(|t| t.elapsed() >= Duration::from_secs(5))
+            && ctx.input(|i| {
+                i.raw
+                    .events
+                    .iter()
+                    .any(|e| matches!(e, egui::Event::WindowFocused(true)))
+            })
+        {
+            self.check_missing_files(ctx);
+        }
         self.poll(ctx);
         crate::crash::step(crate::crash::Step::RemoteTorrents);
         self.poll_remote_torrents();
@@ -12389,9 +12425,6 @@ impl App {
             );
             crate::crash::step(crate::crash::Step::Torrents);
             self.torrent_tick();
-            if !self.headless {
-                self.check_missing_files(ctx);
-            }
             // Minimized, the windows these open (Download complete, a limit's notice, Download
             // File Info for a copied link, an update) are made by a pass of the main window's
             // UI, which egui runs then only when asked: every 2 s, as the clock repaints.
@@ -15368,10 +15401,12 @@ mod start_disk_tests {
         let dir = tempfile::tempdir().unwrap();
         let present = dir.path().join("present.png");
         let deleted = dir.path().join("deleted.bin");
+        let unplugged = dir.path().join("offline_drive").join("remote.bin");
         std::fs::write(&present, b"ok").unwrap();
         let mut app = app_with(vec![
             row(1, present.clone(), Status::Complete),
             row(2, deleted.clone(), Status::Complete),
+            row(3, unplugged.clone(), Status::Complete),
         ]);
         let ctx = egui::Context::default();
         app.check_missing_files(&ctx);
@@ -15382,6 +15417,10 @@ mod start_disk_tests {
         );
         assert!(!get(&app, 1).is_file_missing());
         assert!(get(&app, 2).is_file_missing());
+        assert!(
+            !get(&app, 3).is_file_missing(),
+            "missing parent folder (e.g. unplugged drive) must not mark file missing"
+        );
 
         let queued = std::collections::HashSet::new();
         let r1 = app.row(get(&app, 1), &queued, 0);
@@ -15391,5 +15430,9 @@ mod start_disk_tests {
         assert_eq!(r2.status_group, "File not found");
         assert_eq!(r2.cells[list::STATUS], "File not found");
         assert!(matches!(r2.icon, IconKey::Ext(_)));
+
+        app.settings.show_thumbnails = false;
+        let r1_simple = app.row(get(&app, 1), &queued, 0);
+        assert!(matches!(r1_simple.icon, IconKey::Ext(_)));
     }
 }

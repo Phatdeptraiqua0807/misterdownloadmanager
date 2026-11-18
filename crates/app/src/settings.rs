@@ -89,6 +89,8 @@ pub struct Settings {
     pub many_connections: bool,
     /// Show the "Download complete" dialog (Options → Downloads).
     pub show_complete: bool,
+    /// Show file thumbnails (and per-file icons) in the download list and File Properties.
+    pub show_thumbnails: bool,
     /// Download complete snoozed until then (unix seconds; its window's Snooze menu, #741):
     /// `show_complete` stays as it is. A snooze until MDM restarts is not saved.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -424,6 +426,7 @@ impl Default for Settings {
             max_connections: 8,
             many_connections: false,
             show_complete: true,
+            show_thumbnails: true,
             complete_snoozed_until: None,
             double_click_open: false,
             confirm_delete: true,

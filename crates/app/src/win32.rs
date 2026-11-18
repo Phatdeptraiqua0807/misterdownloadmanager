@@ -6289,6 +6289,8 @@ const IID_SHELL_ITEM_IMAGE_FACTORY: windows_sys::core::GUID = windows_sys::core:
 
 /// Return a thumbnail only (never fall back to a generic file-type icon).
 const SIIGBF_THUMBNAILONLY: i32 = 0x0000_0008;
+/// Return the item's shell icon (e.g. an `.exe`'s embedded icon or extension icon).
+const SIIGBF_ICONONLY: i32 = 0x0000_0004;
 
 /// Vtable prefix of `IShellItemImageFactory` (`IUnknown` + `GetImage`).
 #[repr(C)]
@@ -6363,12 +6365,21 @@ pub fn file_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, 
         }
         let vtbl = &**(factory as *const *const ShellItemImageFactoryVtbl);
         let mut hbmp = std::ptr::null_mut();
-        let hr = (vtbl.get_image)(
+        let mut hr = (vtbl.get_image)(
             factory,
             SIZE { cx: side, cy: side },
             SIIGBF_THUMBNAILONLY,
             &mut hbmp,
         );
+        if hr < 0 || hbmp.is_null() {
+            hbmp = std::ptr::null_mut();
+            hr = (vtbl.get_image)(
+                factory,
+                SIZE { cx: side, cy: side },
+                SIIGBF_ICONONLY,
+                &mut hbmp,
+            );
+        }
         (vtbl.release)(factory);
         if hr < 0 || hbmp.is_null() {
             return None;

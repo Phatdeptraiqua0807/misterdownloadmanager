@@ -7119,6 +7119,10 @@ menu	Select &all	Chọn &tất cả
 #, machine
 menu	Show &drop target	Hiển thị mục tiêu &kéo thả
 #. menu command in the main window
+#. View menu: a check item; show file thumbnails (and per-file icons) in the download list and Properties
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+menu	Show file &thumbnails	Hiển thị &hình thu nhỏ tệp
+#. menu command in the main window
 #, machine
 menu	Show Mister Download Manager	Hiển thị Mister Download Manager
 #. menu command in the main window

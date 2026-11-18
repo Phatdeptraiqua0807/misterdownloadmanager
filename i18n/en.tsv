@@ -5539,6 +5539,10 @@ menu	Select &all	Select &all
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	Show &drop target	Show &drop target
 #. menu command in the main window
+#. View menu: a check item; show file thumbnails (and per-file icons) in the download list and Properties
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+menu	Show file &thumbnails	Show file &thumbnails
+#. menu command in the main window
 menu	Show Mister Download Manager	Show Mister Download Manager
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation

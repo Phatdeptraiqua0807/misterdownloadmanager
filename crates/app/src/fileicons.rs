@@ -222,10 +222,14 @@ pub struct Thumbnail {
     pub size: [u32; 2],
 }
 
+/// Maximum number of thumbnail entries kept in memory at once.
+const MAX_THUMBS: usize = 256;
+
 #[derive(Default)]
 struct ThumbCache {
     /// `None` while the lookup runs; `Some(None)` when the file has no thumbnail.
     items: HashMap<std::path::PathBuf, Option<Option<Thumbnail>>>,
+    order: std::collections::VecDeque<std::path::PathBuf>,
     lookups: Option<Sender<(std::path::PathBuf, u64, egui::Context)>>,
     generations: HashMap<std::path::PathBuf, u64>,
     next_gen: u64,
@@ -237,16 +241,35 @@ fn thumb_cache() -> std::sync::MutexGuard<'static, ThumbCache> {
     THUMB_CACHE.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+fn touch_thumb_order(c: &mut ThumbCache, path: &std::path::Path) {
+    c.order.retain(|p| p != path);
+    c.order.push_back(path.to_path_buf());
+}
+
+fn evict_thumbs_if_needed(c: &mut ThumbCache) {
+    while c.items.len() >= MAX_THUMBS {
+        let Some(oldest) = c.order.pop_front() else {
+            break;
+        };
+        c.items.remove(&oldest);
+        c.generations.remove(&oldest);
+    }
+}
+
 /// Return the cached thumbnail for `path`, or queue a background lookup on first ask.
 pub fn thumbnail(ctx: &egui::Context, path: &std::path::Path) -> Option<Thumbnail> {
     let mut c = thumb_cache();
     if let Some(entry) = c.items.get(path) {
-        return entry.as_ref().and_then(|t| t.clone());
+        let res = entry.as_ref().and_then(|t| t.clone());
+        touch_thumb_order(&mut c, path);
+        return res;
     }
+    evict_thumbs_if_needed(&mut c);
     c.next_gen = c.next_gen.wrapping_add(1);
     let generation = c.next_gen;
     let key = path.to_path_buf();
     c.items.insert(key.clone(), None);
+    c.order.push_back(key.clone());
     c.generations.insert(key.clone(), generation);
     let tx = c.lookups.get_or_insert_with(start_thumb_lookups);
     let _ = tx.send((key, generation, ctx.clone()));
@@ -257,6 +280,7 @@ pub fn thumbnail(ctx: &egui::Context, path: &std::path::Path) -> Option<Thumbnai
 pub fn invalidate_thumbnail(path: &std::path::Path) {
     let mut c = thumb_cache();
     c.items.remove(path);
+    c.order.retain(|p| p != path);
     c.next_gen = c.next_gen.wrapping_add(1);
     let generation = c.next_gen;
     c.generations.insert(path.to_path_buf(), generation);

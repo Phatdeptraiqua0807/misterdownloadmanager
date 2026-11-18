@@ -41,6 +41,14 @@ themed! {
     TEXT => text;
     /// A filtered column's funnel.
     FILTER_ON => accent;
+    /// Status badge fills and glyph from the active theme (light & dark).
+    STATUS_COMPLETE => status_complete;
+    STATUS_DOWNLOADING => status_downloading;
+    STATUS_STOPPED => status_stopped;
+    STATUS_WAITING => status_waiting;
+    STATUS_ERROR => status_error;
+    STATUS_MISSING => status_missing;
+    STATUS_BADGE_FG => status_badge_fg;
 }
 
 /// Columns, by their fixed data slot in [`Row::cells`]: IDM's eight, then the user's additions:
@@ -1514,15 +1522,15 @@ fn paint_status_icon(p: &egui::Painter, status_group: &str, min: Pos2) {
     let c = rc.center();
     let r = 5.5;
     let fill = match status_group {
-        "Complete" => Color32::from_rgb(0x2e, 0x9d, 0x52),
-        "Downloading" => Color32::from_rgb(0x00, 0x78, 0xd4),
-        "Stopped" => Color32::from_rgb(0xd9, 0x82, 0x14),
-        "Waiting" => Color32::from_rgb(0x5b, 0x6f, 0xd6),
-        "Error" => Color32::from_rgb(0xc4, 0x2b, 0x1c),
-        "File not found" => Color32::from_rgb(0xd9, 0x2b, 0x2b),
+        "Complete" => STATUS_COMPLETE(),
+        "Downloading" => STATUS_DOWNLOADING(),
+        "Stopped" => STATUS_STOPPED(),
+        "Waiting" => STATUS_WAITING(),
+        "Error" => STATUS_ERROR(),
+        "File not found" => STATUS_MISSING(),
         _ => return,
     };
-    let fg = Color32::WHITE;
+    let fg = STATUS_BADGE_FG();
     p.circle_filled(c, r, fill);
     let stroke = egui::Stroke::new(1.5, fg);
     match status_group {

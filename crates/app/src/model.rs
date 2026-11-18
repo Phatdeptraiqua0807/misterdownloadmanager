@@ -1600,9 +1600,10 @@ impl Item {
         self.torrent.is_none() && self.snap.as_ref().is_some_and(every_byte_in)
     }
 
-    /// Whether this finished download's saved file is missing from `dest` (deleted or moved away).
+    /// Whether this finished download's saved file is missing from `dest` (deleted while its
+    /// folder is still present).
     pub fn is_file_missing(&self) -> bool {
-        self.status == Status::Complete && (self.file_missing || self.moved_away)
+        self.status == Status::Complete && self.file_missing
     }
 
     pub fn status_text(&self) -> String {
@@ -2758,7 +2759,7 @@ mod limit_tests {
         assert_eq!(item.status_text(), "Complete");
 
         item.moved_away = true;
-        assert!(item.is_file_missing());
-        assert_eq!(item.status_text(), "File not found");
+        assert!(!item.is_file_missing(), "moved_away is not missing");
+        assert_eq!(item.status_text(), "Complete");
     }
 }

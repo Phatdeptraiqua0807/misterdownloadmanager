@@ -160,6 +160,13 @@ palette! {
     reach_near: "reach.near", "A download's server near by its round trip (under 60 ms), in Properties" = rgb(0x6c, 0xcb, 0x5f), rgb(0x10, 0x7c, 0x10);
     reach_medium: "reach.medium", "A server at a medium round trip (60 to 150 ms)" = rgb(0xf7, 0xb0, 0x40), rgb(0x9d, 0x5d, 0x00);
     reach_far: "reach.far", "A server far by its round trip (over 150 ms)" = rgb(0xff, 0x99, 0xa4), rgb(0xc4, 0x2b, 0x1c);
+    status_complete: "status.complete", "Status badge for a finished download" = rgb(0x3a, 0xa8, 0x5c), rgb(0x2e, 0x9d, 0x52);
+    status_downloading: "status.downloading", "Status badge for an active download" = rgb(0x26, 0x8e, 0xe0), rgb(0x00, 0x78, 0xd4);
+    status_stopped: "status.stopped", "Status badge for a paused download" = rgb(0xe0, 0x8e, 0x24), rgb(0xd9, 0x82, 0x14);
+    status_waiting: "status.waiting", "Status badge for a queued download" = rgb(0x70, 0x82, 0xe0), rgb(0x5b, 0x6f, 0xd6);
+    status_error: "status.error", "Status badge for a failed download" = rgb(0xd9, 0x45, 0x38), rgb(0xc4, 0x2b, 0x1c);
+    status_missing: "status.missing", "Status badge for a missing finished file" = rgb(0xe5, 0x45, 0x45), rgb(0xd9, 0x2b, 0x2b);
+    status_badge_fg: "status.badge_fg", "Glyph on a status badge" = grey(0xff), grey(0xff);
     flag_edge: "flag.edge", "The thin edge around a country's flag" = rgba(0x00, 0x00, 0x00, 40), rgba(0x00, 0x00, 0x00, 40);
     accent: "accent", "The accent: focus lines, open and default controls, filters, links' focus" = rgb(0x60, 0xcd, 0xff), rgb(0x00, 0x78, 0xd4);
     focus_ring: "focus.ring", "The dotted keyboard focus rectangle" = grey(0xcc), grey(0x0d);
