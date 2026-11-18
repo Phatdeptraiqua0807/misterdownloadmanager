@@ -5387,8 +5387,7 @@ menu	Emerald	Emerald
 menu	Extract	Extract
 #. menu command in the main window
 #. View menu: submenu choosing between per-file thumbnails and simple icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-menu	File &icons	File &icons
+menu	File icons	File icons
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it

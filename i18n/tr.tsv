@@ -1728,6 +1728,11 @@
 #. checkbox in the Find window
 #, machine
 	File name or part of the name	Dosya adı veya adın bir kısmı
+#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
+#. a download's status (state it is in, not a command)
+#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
+#, machine
+	File not found	Dosya bulunamadı
 #. window title in a download's Properties window
 #, machine
 	File Properties	Dosya özellikleri
@@ -6675,6 +6680,11 @@ menu	&Scheduler and queues	&Zamanlayıcı ve kuyruklar
 #, machine
 menu	&Show hidden tabs	Gizli sekmeleri &göster
 #. menu command in the main window
+#. View → File icons: show only simple generic file-type icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Simple icons	&Basit simgeler
+#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6687,6 +6697,11 @@ menu	&Stop All	&Tümünü Durdur
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Stop Download	&İndirmeyi Durdur
+#. menu command in the main window
+#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Thumbnails and file icons	&Küçük resimler ve dosya simgeleri
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6906,6 +6921,10 @@ menu	Emerald	Emerald
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 #, machine
 menu	Extract	Ayıkla
+#. submenu in the main window
+#. View menu: submenu choosing between per-file thumbnails and simple icons
+#, machine
+menu	File icons	Dosya simgeleri
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it

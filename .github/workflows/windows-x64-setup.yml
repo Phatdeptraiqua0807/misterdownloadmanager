@@ -1,0 +1,89 @@
+name: Windows x64 Check & Setup Build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "website/**"
+      - "tools/website/**"
+      - "i18n/site/**"
+      - "docs/**"
+      - "**/*.md"
+  workflow_dispatch:
+
+concurrency:
+  group: win-x64-setup-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows-x64:
+    name: Windows x64 (check + test + setup)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Toolchain
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add x86_64-pc-windows-msvc
+
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: win-x64-setup-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            win-x64-setup-
+            win-x64-dev-
+
+      - name: NASM
+        shell: pwsh
+        run: |
+          choco install nasm --version 2.16.3 --no-progress -y
+          "C:\Program Files\NASM" >> $env:GITHUB_PATH
+
+      - name: Format check
+        run: cargo fmt --all --check
+
+      - name: English catalog check
+        run: |
+          python tools/i18n/extract.py
+          git diff --exit-code -- i18n/en.tsv
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --workspace
+
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+
+      - name: Build Windows x64 Setup & Portable zip
+        shell: pwsh
+        run: ./tools/installer/build.ps1 -Arch x64
+
+      - name: Smoke test
+        run: python tools/installer/smoke.py target/x86_64-pc-windows-msvc/release x64
+
+      - name: Upload Windows x64 Setup artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-x64-setup
+          path: target/dist/*
+          retention-days: 14

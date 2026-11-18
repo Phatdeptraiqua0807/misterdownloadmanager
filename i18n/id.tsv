@@ -1331,6 +1331,11 @@
 	File name	Nama file
 #. checkbox in the Find window
 	File name or part of the name	Nama file atau bagian dari nama
+#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
+#. a download's status (state it is in, not a command)
+#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
+#, machine
+	File not found	File tidak ditemukan
 #. window title in a download's Properties window
 	File Properties	Properti File
 #. text in a download's progress window
@@ -5065,6 +5070,11 @@ menu	&Scheduler and queues	&Penjadwal dan antrean
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Show hidden tabs	&Tampilkan tab tersembunyi
 #. menu command in the main window
+#. View → File icons: show only simple generic file-type icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Simple icons	Ikon &sederhana
+#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Smooth	&Halus
@@ -5074,6 +5084,11 @@ menu	&Stop All	&Hentikan Semua
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Stop Download	&Hentikan Unduhan
+#. menu command in the main window
+#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Thumbnails and file icons	&Thumbnail dan ikon file
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Tray icon	Ikon &baki
@@ -5242,6 +5257,10 @@ menu	Emerald	Emerald
 #. menu command in the main window
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 menu	Extract	Ekstrak
+#. submenu in the main window
+#. View menu: submenu choosing between per-file thumbnails and simple icons
+#, machine
+menu	File icons	Ikon file
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it

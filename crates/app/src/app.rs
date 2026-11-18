@@ -8678,7 +8678,7 @@ impl App {
         // i18n: View → File icons: show only simple generic file-type icons
         let b = MenuEntry::Radio("&Simple icons", Cmd::FileThumbnails(false), true, !on);
         // i18n: View menu: submenu choosing between per-file thumbnails and simple icons
-        MenuEntry::Sub("File &icons", true, vec![a, b])
+        MenuEntry::Sub("File icons", true, vec![a, b])
     }
 
     /// View → Text (Windows): how the letters are drawn. Smooth is DirectWrite's natural look
