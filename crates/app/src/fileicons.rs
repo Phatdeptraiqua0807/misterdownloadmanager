@@ -1342,7 +1342,7 @@ mod tests {
         use std::io::Write;
         set_thumbnails_enabled(true);
         let dir = tempfile::tempdir().unwrap();
-        let mut img = image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+        let img = image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
             32,
             24,
             image::Rgba([10, 180, 90, 255]),

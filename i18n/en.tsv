@@ -5156,7 +5156,6 @@ menu	&Exit	&Exit
 menu	&Import	&Import
 #. menu command in the main window
 #. View menu: submenu choosing how large MDM draws its windows and text (100 % to 200 %), as a browser's zoom
-#. View → Interface size: percentage step in a submenu
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Interface size	&Interface size
 #. menu command in the main window

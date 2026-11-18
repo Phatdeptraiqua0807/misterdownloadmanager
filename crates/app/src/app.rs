@@ -8662,7 +8662,6 @@ impl App {
             })
             .collect();
         // i18n: View menu: submenu choosing how large MDM draws its windows and text (100 % to 200 %), as a browser's zoom
-        // i18n: View → Interface size: percentage step in a submenu
         MenuEntry::Sub("&Interface size", true, items)
     }
 
@@ -8686,7 +8685,12 @@ impl App {
     fn file_icons_menu(&self) -> MenuEntry<Cmd> {
         let on = self.settings.file_thumbnails;
         // i18n: View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
-        let a = MenuEntry::Radio("&Thumbnails and file icons", Cmd::FileThumbnails(true), true, on);
+        let a = MenuEntry::Radio(
+            "&Thumbnails and file icons",
+            Cmd::FileThumbnails(true),
+            true,
+            on,
+        );
         // i18n: View → File icons: show only simple generic file-type icons
         let b = MenuEntry::Radio("&Simple icons", Cmd::FileThumbnails(false), true, !on);
         // i18n: View menu: submenu choosing between per-file thumbnails and simple icons
@@ -11714,6 +11718,36 @@ impl App {
                         self.settings.torrent_upload_kb,
                     ) = upload;
                     // Seeding limits: the tick stops those over them; raised, the finished
+                    // torrents now under them are shared again (when sharing stays on).
+                    let s = &mut self.settings;
+                    let before = s.sharing_limits();
+                    s.torrent_stop_ratio_on = seeding.ratio_on;
+                    s.torrent_stop_ratio = seeding.ratio;
+                    s.torrent_stop_minutes_on = seeding.minutes_on;
+                    s.torrent_stop_minutes = seeding.minutes;
+                    if share
+                        && share == self.settings.torrent_keep_sharing
+                        && before != self.settings.sharing_limits()
+                    {
+                        self.torrent_host.set_sharing(
+                            &self.rt,
+                            self.session_hashes(),
+                            self.complete_torrents(),
+                            true,
+                        );
+                    }
+                    if share != self.settings.torrent_keep_sharing {
+                        self.settings.torrent_keep_sharing = share;
+                        self.torrent_host.set_sharing(
+                            &self.rt,
+                            self.session_hashes(),
+                            self.complete_torrents(),
+                            share,
+                        );
+                    }
+                    if Some(assoc) != self.settings.torrent_associations {
+                        self.settings.torrent_associations = Some(assoc);
+                        // Not from an instance off the screens (a test's), as at start.
                         if !crate::offscreen() {
                             #[cfg(windows)]
                             crate::win32::set_torrent_handlers(assoc);

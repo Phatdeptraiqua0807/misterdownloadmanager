@@ -1320,6 +1320,11 @@
 	File name	Nome file
 #. checkbox in the Find window
 	File name or part of the name	Nome file o parte del nome
+#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
+#. a download's status (state it is in, not a command)
+#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
+#, machine
+	File not found	File non trovato
 #. window title in a download's Properties window
 	File Properties	Proprietà del file
 #. text in a download's progress window
@@ -5128,6 +5133,11 @@ menu	&Scheduler and queues	&Pianificatore e code
 #, machine
 menu	&Show hidden tabs	Mo&stra schede nascoste
 #. menu command in the main window
+#. View → File icons: show only simple generic file-type icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Simple icons	Icone &semplici
+#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -5138,6 +5148,11 @@ menu	&Stop All	&Interrompi tutto
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Stop Download	&Interrompi download
+#. menu command in the main window
+#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Thumbnails and file icons	&Miniature e icone dei file
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Tray icon	Icona nell'area di &notifica
@@ -5309,6 +5324,11 @@ menu	Emerald	Smeraldo
 #. menu command in the main window
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 menu	Extract	Estrai
+#. menu command in the main window
+#. View menu: submenu choosing between per-file thumbnails and simple icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	File &icons	&Icone dei file
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it

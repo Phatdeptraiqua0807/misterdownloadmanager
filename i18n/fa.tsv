@@ -1705,6 +1705,11 @@
 #. checkbox in the Find window
 #, machine
 	File name or part of the name	نام فایل یا بخشی از نام
+#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
+#. a download's status (state it is in, not a command)
+#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
+#, machine
+	File not found	پرونده یافت نشد
 #. window title in a download's Properties window
 #, machine
 	File Properties	ویژگی‌های فایل
@@ -6634,6 +6639,11 @@ menu	&Scheduler and queues	&زمان‌بندی و صف‌ها
 #, machine
 menu	&Show hidden tabs	نمایش زبانه‌های &پنهان
 #. menu command in the main window
+#. View → File icons: show only simple generic file-type icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Simple icons	آیکون‌های &ساده
+#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6646,6 +6656,11 @@ menu	&Stop All	&توقف همه
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Stop Download	توقف &دانلود
+#. menu command in the main window
+#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Thumbnails and file icons	&تصاویر بندانگشتی و آیکون‌های پرونده
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6860,6 +6875,11 @@ menu	Emerald	زمرد
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 #, machine
 menu	Extract	استخراج
+#. menu command in the main window
+#. View menu: submenu choosing between per-file thumbnails and simple icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	File &icons	آیکو&ن‌های پرونده
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it
