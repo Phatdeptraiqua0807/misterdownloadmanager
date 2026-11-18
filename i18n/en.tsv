@@ -5135,6 +5135,10 @@ menu	&Automatic	&Automatic
 #. View → Text: letters drawn the classic way, hinted to whole pixels (crisp, coarse on a dense screen)
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Classic	&Classic
+#. menu command in the main window
+#. View → Status icons: always show colored circular status badges
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+menu	&Colored icons	&Colored icons
 #. menu command in standard windows
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Copy	&Copy
@@ -5170,6 +5174,10 @@ menu	&Language...	&Language...
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #. the trailing ... means it opens a window: keep it
 menu	&Link grabber...	&Link grabber...
+#. menu command in the main window
+#. View → Status icons: hide the icon in the Status column
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+menu	&No icons	&No icons
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Options	&Options
@@ -5216,6 +5224,10 @@ menu	&Stop All	&Stop All
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Stop Download	&Stop Download
+#. menu command in the main window
+#. View → Status icons: use the active theme's status icons when available
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+menu	&Theme icons	&Theme icons
 #. menu command in the main window
 #. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
@@ -5559,6 +5571,9 @@ menu	Speed &Limiter	Speed &Limiter
 menu	Start &queue	Start &queue
 #. menu command in the main window
 menu	Start now	Start now
+#. menu command in the main window
+#. View menu: submenu choosing how icons in the Status column are drawn
+menu	Status icons	Status icons
 #. menu command in the main window
 #. verb: stops the queue
 menu	Stop	Stop

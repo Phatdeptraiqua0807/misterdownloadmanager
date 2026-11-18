@@ -1723,6 +1723,11 @@
 #. checkbox in the Find window
 #, machine
 	File name or part of the name	فائل کا نام یا نام کا حصہ
+#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
+#. a download's status (state it is in, not a command)
+#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
+#, machine
+	File not found	فائل نہیں ملی
 #. window title in a download's Properties window
 #, machine
 	File Properties	فائل کی خصوصیات
@@ -6583,6 +6588,11 @@ menu	&Automatic	آ&ٹومیٹک
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Classic	کلا&سک
+#. menu command in the main window
+#. View → Status icons: always show colored circular status badges
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Colored icons	&رنگین آئیکنز
 #. menu command in standard windows
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6629,6 +6639,11 @@ menu	&Language...	ز&بان...
 #, machine
 menu	&Link grabber...	&لنک گریبر...
 #. menu command in the main window
+#. View → Status icons: hide the icon in the Status column
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&No icons	&کوئی آئیکن نہیں
+#. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Options	اختیارات(&O)
@@ -6670,6 +6685,11 @@ menu	&Scheduler and queues	شیڈیولر اور قطاریں(&S)
 #, machine
 menu	&Show hidden tabs	پوشیدہ ٹیبز دکھائیں(&S)
 #. menu command in the main window
+#. View → File icons: show only simple generic file-type icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Simple icons	&سادہ آئیکنز
+#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6682,6 +6702,16 @@ menu	&Stop All	سبھی روکیں(&S)
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Stop Download	ڈاؤن لوڈ روکیں(&S)
+#. menu command in the main window
+#. View → Status icons: use the active theme's status icons when available
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Theme icons	&تھیم آئیکنز
+#. menu command in the main window
+#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Thumbnails and file icons	&تھمب نیلز اور فائل آئیکنز
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6896,6 +6926,10 @@ menu	Emerald	ایمرلڈ
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 #, machine
 menu	Extract	نکالیں
+#. submenu in the main window
+#. View menu: submenu choosing between per-file thumbnails and simple icons
+#, machine
+menu	File icons	فائل آئیکنز
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it
@@ -7124,6 +7158,10 @@ menu	Start &queue	قطار شروع کریں(&q)
 #. menu command in the main window
 #, machine
 menu	Start now	ابھی شروع کریں
+#. menu command in the main window
+#. View menu: submenu choosing how icons in the Status column are drawn
+#, machine
+menu	Status icons	اسٹیٹس آئیکنز
 #. menu command in the main window
 #. verb: stops the queue
 #, machine

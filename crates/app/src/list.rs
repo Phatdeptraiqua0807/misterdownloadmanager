@@ -21,6 +21,19 @@ pub fn row_h() -> f32 {
     crate::theme::metrics().list_row
 }
 
+static STATUS_ICONS: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(1);
+
+/// Set the Status column's icon display mode: `1` colored badges (default), `2` theme icons, `0`
+/// no icons.
+pub fn set_status_icons(mode: u8) {
+    STATUS_ICONS.store(mode, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Whether and how Status column icons are shown (`1` colored, `2` theme, `0` none).
+pub fn status_icons() -> u8 {
+    STATUS_ICONS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 // The active theme's colours (crate::palette, #45).
 themed! {
     /// The list's border (it was #828790 in dark too): the lists' and tables' one edge.
@@ -1056,7 +1069,7 @@ pub fn show(
                 let tx = if *c == 0 {
                     icons.paint_in(ui, &bp, row.icon.clone(), pos2(x0 + 4.0, top));
                     x0 + 22.0
-                } else if *c == STATUS {
+                } else if *c == STATUS && status_icons() != 0 {
                     paint_status_icon(ui, &clip, row.status_group, pos2(x0 + 4.0, top));
                     x0 + 20.0
                 } else {
@@ -1147,9 +1160,7 @@ pub fn show(
             .map_or(resp.id, row_id);
         winui::keys_with(ui.ctx(), item);
     }
-    let showing_thumb = if crate::fileicons::thumbnails_enabled()
-        && let Some((path, name)) = thumb_under_pointer
-    {
+    let showing_thumb = if let Some((path, name)) = thumb_under_pointer {
         crate::fileicons::show_thumbnail_preview(ui, &path, &name)
     } else {
         false
@@ -1393,7 +1404,7 @@ fn fit_width(p: &egui::Painter, font: &egui::FontId, col: usize, rows: &[Row]) -
     let title = measure(crate::i18n::tc("column", TITLES[col])) + 6.0 + 24.0;
     let lead = if col == 0 {
         22.0
-    } else if col == STATUS {
+    } else if col == STATUS && status_icons() != 0 {
         20.0
     } else {
         6.0
@@ -1512,12 +1523,16 @@ fn chip(
 
 /// Paint a themed 12 × 12 status icon at English point `min` (left edge of the Status cell).
 fn paint_status_icon(ui: &Ui, p: &egui::Painter, status_group: &str, min: Pos2) {
+    let mode = status_icons();
+    if mode == 0 {
+        return;
+    }
     let top = min.y + ((row_h() - 12.0) / 2.0).floor();
     let rc = winui::rect(Rect::from_min_size(
         pos2(min.x, top),
         egui::vec2(12.0, 12.0),
     ));
-    if crate::theme::current().icon_set.is_some() {
+    if mode == 2 && crate::theme::current().icon_set.is_some() {
         let need = match status_group {
             "Complete" => Some("st-complete"),
             "Downloading" => Some("st-downloading"),

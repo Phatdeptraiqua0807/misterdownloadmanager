@@ -1320,6 +1320,11 @@
 	File name	Nome file
 #. checkbox in the Find window
 	File name or part of the name	Nome file o parte del nome
+#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
+#. a download's status (state it is in, not a command)
+#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
+#, machine
+	File not found	File non trovato
 #. window title in a download's Properties window
 	File Properties	Proprietà del file
 #. text in a download's progress window
@@ -5059,6 +5064,11 @@ menu	&Automatic	&Automatico
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Classic	&Classico
+#. menu command in the main window
+#. View → Status icons: always show colored circular status badges
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Colored icons	Icone &colorate
 #. menu command in standard windows
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Copy	&Copia
@@ -5095,6 +5105,11 @@ menu	&Language...	&Lingua...
 #. the trailing ... means it opens a window: keep it
 menu	&Link grabber...	&Link grabber...
 #. menu command in the main window
+#. View → Status icons: hide the icon in the Status column
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&No icons	&Nessuna icona
+#. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Options	&Opzioni
 #. menu command in standard windows
@@ -5128,6 +5143,11 @@ menu	&Scheduler and queues	&Pianificatore e code
 #, machine
 menu	&Show hidden tabs	Mo&stra schede nascoste
 #. menu command in the main window
+#. View → File icons: show only simple generic file-type icons
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Simple icons	Icone &semplici
+#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -5138,6 +5158,16 @@ menu	&Stop All	&Interrompi tutto
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Stop Download	&Interrompi download
+#. menu command in the main window
+#. View → Status icons: use the active theme's status icons when available
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Theme icons	Icone del &tema
+#. menu command in the main window
+#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
+#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
+#, machine
+menu	&Thumbnails and file icons	&Miniature e icone dei file
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Tray icon	Icona nell'area di &notifica
@@ -5309,6 +5339,10 @@ menu	Emerald	Smeraldo
 #. menu command in the main window
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 menu	Extract	Estrai
+#. submenu in the main window
+#. View menu: submenu choosing between per-file thumbnails and simple icons
+#, machine
+menu	File icons	Icone dei file
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it
@@ -5489,6 +5523,10 @@ menu	Speed &Limiter	&Limitatore di velocità
 menu	Start &queue	Avvia &coda
 #. menu command in the main window
 menu	Start now	Avvia ora
+#. menu command in the main window
+#. View menu: submenu choosing how icons in the Status column are drawn
+#, machine
+menu	Status icons	Icone di stato
 #. menu command in the main window
 #. verb: stops the queue
 menu	Stop	Interrompi

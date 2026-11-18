@@ -523,6 +523,8 @@ enum Cmd {
     SmoothText(bool),
     /// View → File icons → Thumbnails and file icons (`true`) or Simple icons (`false`).
     FileThumbnails(bool),
+    /// View → Status icons → Colored icons (`1`), Theme icons (`2`), or No icons (`0`).
+    StatusIcons(u8),
     /// View → Language: a catalog's code, or follow Windows (`None`).
     Language(Option<&'static str>),
     /// View → Language...: the language picker.
@@ -1914,6 +1916,7 @@ impl App {
             move || repaint.request_repaint(),
         );
         crate::fileicons::set_thumbnails_enabled(app.settings.file_thumbnails);
+        crate::list::set_status_icons(app.settings.status_icons);
         app.check_missing_files(ctx);
         app.lang_picker = ask_language.then(|| crate::langpick::Picker::new(true, None));
         app.remote = remote;
@@ -7670,6 +7673,11 @@ impl App {
                 // every painter reads the new theme from its next frame.
                 crate::theme::apply_theme(ctx);
                 crate::theme::apply_mode(ctx);
+                // Themes that ship their own file-type icon set default to "Simple icons" when
+                // selected; users can still re-enable "Thumbnails and file icons" afterwards.
+                let simple = crate::theme::current().icon_set.is_some();
+                self.settings.file_thumbnails = !simple;
+                crate::fileicons::set_thumbnails_enabled(!simple);
                 self.caption_set = false;
                 self.theme_checked = None;
                 self.dirty = true;
@@ -7714,6 +7722,12 @@ impl App {
             Cmd::FileThumbnails(on) => {
                 crate::fileicons::set_thumbnails_enabled(on);
                 self.settings.file_thumbnails = on;
+                self.dirty = true;
+                ctx.request_repaint();
+            }
+            Cmd::StatusIcons(mode) => {
+                crate::list::set_status_icons(mode);
+                self.settings.status_icons = mode;
                 self.dirty = true;
                 ctx.request_repaint();
             }
@@ -8523,6 +8537,8 @@ impl App {
                     self.settings.always_dark,
                 ),
                 self.file_icons_menu(),
+                self.status_icons_menu(),
+                self.double_click_menu(),
                 // i18n: noun: the list's font (submenu)
                 Sub("Font", false, vec![]),
                 Sep,
@@ -8679,6 +8695,33 @@ impl App {
         let b = MenuEntry::Radio("&Simple icons", Cmd::FileThumbnails(false), true, !on);
         // i18n: View menu: submenu choosing between per-file thumbnails and simple icons
         MenuEntry::Sub("File icons", true, vec![a, b])
+    }
+
+    /// View → Status icons: choose between colored status badges, theme icons, or no icons.
+    fn status_icons_menu(&self) -> MenuEntry<Cmd> {
+        let mode = self.settings.status_icons;
+        // i18n: View → Status icons: always show colored circular status badges
+        let colored = MenuEntry::Radio("&Colored icons", Cmd::StatusIcons(1), true, mode == 1);
+        // i18n: View → Status icons: use the active theme's status icons when available
+        let themed = MenuEntry::Radio("&Theme icons", Cmd::StatusIcons(2), true, mode == 2);
+        // i18n: View → Status icons: hide the icon in the Status column
+        let none = MenuEntry::Radio("&No icons", Cmd::StatusIcons(0), true, mode == 0);
+        // i18n: View menu: submenu choosing how icons in the Status column are drawn
+        MenuEntry::Sub("Status icons", true, vec![colored, themed, none])
+    }
+
+    /// View → On Double click (also in the list's right-click menu): choose whether double-clicking
+    /// a row opens the file or Properties.
+    fn double_click_menu(&self) -> MenuEntry<Cmd> {
+        let open = self.settings.double_click_open;
+        MenuEntry::Sub(
+            "On Double click",
+            true,
+            vec![
+                MenuEntry::Radio("Open", Cmd::DoubleClickOpen(true), true, open),
+                MenuEntry::Radio("Properties", Cmd::DoubleClickOpen(false), true, !open),
+            ],
+        )
     }
 
     /// View → Text (Windows): how the letters are drawn. Smooth is DirectWrite's natural look

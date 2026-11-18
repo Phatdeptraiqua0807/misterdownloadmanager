@@ -138,6 +138,8 @@ pub struct Settings {
     /// View → File icons: show per-file thumbnails and embedded icons (true, the default) or
     /// simple generic file-type icons (false).
     pub file_thumbnails: bool,
+    /// View → Status icons: 1 colored badges (default), 2 theme icons, 0 none.
+    pub status_icons: u8,
     /// Scheduler → Download limits: "Download no more than `limits_mb` MBytes every
     /// `limits_hours` hours" (IDM defaults 200 / 5), with a warning before stopping.
     pub limits_on: bool,
@@ -445,6 +447,7 @@ impl Default for Settings {
             interface_size: 100,
             smooth_text: false,
             file_thumbnails: true,
+            status_icons: 1,
             limits_on: false,
             limits_mb: 200,
             limits_hours: 5,

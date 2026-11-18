@@ -220,16 +220,10 @@ const MAX_THUMBNAILS: usize = 64;
 
 static THUMBNAILS_ON: AtomicBool = AtomicBool::new(true);
 
-/// Enable or disable per-file thumbnails and embedded icons. Turning them off clears cached
-/// textures immediately.
+/// Enable or disable per-file thumbnails and embedded icons on row and dialog icons. Hover
+/// previews remain available in both modes so users can still inspect a file when hovering.
 pub fn set_thumbnails_enabled(on: bool) {
     THUMBNAILS_ON.store(on, Ordering::Relaxed);
-    if !on {
-        let mut c = thumb_cache();
-        c.items.clear();
-        c.order.clear();
-        c.generations.clear();
-    }
 }
 
 /// Whether per-file thumbnails and embedded icons are enabled (`View → File icons`).
@@ -281,9 +275,6 @@ fn evict_lru(c: &mut ThumbCache) {
 
 /// Return the cached thumbnail for `path`, or queue a background lookup on first ask.
 pub fn thumbnail(ctx: &egui::Context, path: &std::path::Path) -> Option<Thumbnail> {
-    if !thumbnails_enabled() {
-        return None;
-    }
     let mut c = thumb_cache();
     if let Some(entry) = c.items.get(path).cloned() {
         touch_lru(&mut c.order, path);
@@ -322,7 +313,7 @@ fn start_thumb_lookups() -> Sender<(std::path::PathBuf, u64, egui::Context)> {
                     .flatten();
                 let thumb = got.and_then(|raw| to_thumbnail(&ctx, &path, raw));
                 let mut c = thumb_cache();
-                if c.generations.get(&path).copied() == Some(generation) && thumbnails_enabled() {
+                if c.generations.get(&path).copied() == Some(generation) {
                     if !c.items.contains_key(&path) {
                         evict_lru(&mut c);
                     }
@@ -352,7 +343,7 @@ fn fit_rect_size(w: u32, h: u32, max_px: u32) -> (u32, u32) {
 }
 
 fn load_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
-    if !thumbnails_enabled() || !path.is_file() {
+    if !path.is_file() {
         return None;
     }
     let ext = path
@@ -784,7 +775,6 @@ fn to_thumbnail(
 pub fn paint_file(ui: &Ui, painter: &Painter, path: &std::path::Path, rc: Rect) {
     let ctx = ui.ctx();
     if thumbnails_enabled()
-        && crate::theme::current().icon_set.is_none()
         && let Some(thumb) = thumbnail(ctx, path)
     {
         let ppp = ctx.pixels_per_point();
@@ -815,12 +805,9 @@ pub fn paint_file(ui: &Ui, painter: &Painter, path: &std::path::Path, rc: Rect) 
     paint(ui, painter, Kind::File(&name), rc);
 }
 
-/// Show a floating thumbnail preview popup near the pointer when `thumbnails_enabled()`. Returns
+/// Show a floating thumbnail preview popup near the pointer when `path` has a thumbnail. Returns
 /// true when a popup was shown.
 pub fn show_thumbnail_preview(ui: &Ui, path: &std::path::Path, file_name: &str) -> bool {
-    if !thumbnails_enabled() {
-        return false;
-    }
     let ctx = ui.ctx();
     let Some(pos) = ctx.pointer_hover_pos() else {
         return false;
@@ -960,7 +947,21 @@ pub fn paint(ui: &Ui, painter: &Painter, kind: Kind, rc: Rect) {
     let rc = rc.round_to_pixels(ppp);
     let px = (rc.width() * ppp).round().clamp(1.0, 512.0) as u32;
     let what = What::of(kind);
-    // A theme with an icon set draws its own for the type's kind (#45); the system's otherwise.
+    if thumbnails_enabled() {
+        match shown(ctx, &what, px) {
+            Some(Shown::Texture(t)) => {
+                let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+                painter.image(t.id(), rc, uv, Color32::WHITE);
+                return;
+            }
+            Some(Shown::Image(src)) => {
+                paint_source(ui, painter, src, rc);
+                return;
+            }
+            _ => {}
+        }
+    }
+    // A theme with an icon set draws its own for the type's kind (#45); Tango fallback otherwise.
     if crate::theme::current().icon_set.is_some() {
         let ext = match &what {
             What::File(Some(e)) => Some(e.as_str()),
@@ -971,18 +972,7 @@ pub fn paint(ui: &Ui, painter: &Painter, kind: Kind, rc: Rect) {
             return;
         }
     }
-    if !thumbnails_enabled() {
-        paint_source(ui, painter, fallback(&what, px), rc);
-        return;
-    }
-    match shown(ctx, &what, px) {
-        Some(Shown::Texture(t)) => {
-            let uv = Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
-            painter.image(t.id(), rc, uv, Color32::WHITE);
-        }
-        Some(Shown::Image(src)) => paint_source(ui, painter, src, rc),
-        _ => paint_source(ui, painter, fallback(&what, px), rc),
-    }
+    paint_source(ui, painter, fallback(&what, px), rc);
 }
 
 fn paint_source(ui: &Ui, painter: &Painter, src: ImageSource<'static>, rc: Rect) {
@@ -1454,13 +1444,12 @@ mod tests {
             Some((32, 24))
         );
 
-        // Disabling thumbnails clears cache and stops lookups.
-        let ctx = egui::Context::default();
+        // Toggling row thumbnails off keeps hover preview extraction working.
         set_thumbnails_enabled(false);
         assert!(!thumbnails_enabled());
-        assert!(thumbnail(&ctx, &jpg_path).is_none());
-        assert!(load_thumbnail(&jpg_path, 64).is_none());
+        assert!(load_thumbnail(&jpg_path, 64).is_some());
         set_thumbnails_enabled(true);
+        assert!(thumbnails_enabled());
     }
 
     #[test]
