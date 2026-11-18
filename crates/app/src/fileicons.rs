@@ -291,10 +291,8 @@ pub fn thumbnail(ctx: &egui::Context, path: &std::path::Path) -> Option<Thumbnai
             touch_lru(&mut c.order, path);
             return Some(thumb);
         }
-        if entry.is_none() {
-            // Still loading in the background thread.
-            return None;
-        }
+        // Still loading in the background thread when `entry` is `None`.
+        entry.as_ref()?;
         // Previous lookup returned `None`: keep it only while the file's size/mtime is unchanged.
         let now_stamp = file_stamp(path);
         if c.stamps.get(path).copied().flatten() == now_stamp && now_stamp.is_some() {
@@ -957,6 +955,7 @@ fn windows_media_thumbnail(_path: &std::path::Path, _max_px: u32) -> Option<(u32
 }
 
 #[cfg(windows)]
+#[allow(unsafe_code)]
 fn windows_media_thumbnail(path: &std::path::Path, max_px: u32) -> Option<(u32, u32, Vec<u8>)> {
     use std::ffi::c_void;
     use std::mem::{size_of, zeroed};
