@@ -149,7 +149,7 @@
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 	&Apply	&اعمال
-#. text in the Scheduler window; button in standard windows
+#. text in the Scheduler window
 #. verb: close the window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -444,7 +444,7 @@
 #. item in the Categories tree in the main window
 #, machine
 	All Downloads	همه دانلودها
-#. message or event log entry in the main window; text in standard windows
+#. message or event log entry in the main window
 #, machine
 	All files	همه فایل‌ها
 #. text in helpers.rs
@@ -900,9 +900,7 @@
 #. the list's Status column while a torrent's files or a finished file are checked (against the torrent's hashes or a checksum); {percent} how much is checked, e.g. "42%". One short word: the column is narrow
 #, machine
 	Checking {percent}	در حال بررسی {percent}
-#. text in the Checksum window; text in extension.rs; text in the Link grabber window; text in the Options window
-#. in the browser extension's window, while it reads whether the browsers can reach MDM (a moment, usually)
-#. Test browser integration, while it reads where browser integration stands (a moment, usually)
+#. text in the Checksum window; text in the Link grabber window
 #. the trailing ... means it is still going on: keep it
 #, machine
 	Checking...	در حال بررسی...
@@ -936,7 +934,7 @@
 #. a country's name (where a download's server is)
 #, machine
 	Christmas Island	جزیره کریسمس
-#. button in the download list; button in the Options window
+#. button in the download list
 #. verb: clears this filter
 #, machine
 	Clear	پاک کردن
@@ -1158,7 +1156,7 @@
 #. text in the Options window
 #, machine
 	Default max. conn. number	حداکثر تعداد اتصال پیش‌فرض
-#. text in the main window's messages (deleting downloads' files); button in a dialog box; button in the Options window; button in rssdlg.rs
+#. message or event log entry in the main window; button in a dialog box; button in the Options window; button in rssdlg.rs
 #. button: deletes the category
 #. verb: delete the item
 #, machine
@@ -1707,11 +1705,6 @@
 #. checkbox in the Find window
 #, machine
 	File name or part of the name	نام فایل یا بخشی از نام
-#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
-#. a download's status (state it is in, not a command)
-#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
-#, machine
-	File not found	پرونده یافت نشد
 #. window title in a download's Properties window
 #, machine
 	File Properties	ویژگی‌های فایل
@@ -2735,7 +2728,7 @@
 #. text in crashui.rs
 #, machine
 	Mister Download Manager crash report	گزارش خرابی Mister Download Manager
-#. text in crashui.rs; text in the Help menu's windows (About, updates, shortcuts, Tell a friend)
+#. text in crashui.rs
 #. crash report window heading: an internal error, MDM still running
 #, machine
 	Mister Download Manager hit an internal error	Mister Download Manager با خطای داخلی مواجه شد
@@ -2818,6 +2811,9 @@
 #. what a keyboard shortcut does in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #, machine
 	Move a page up / down	حرکت به بالا/پایین صفحه
+#. what a keyboard shortcut does in the Help menu's windows (About, updates, shortcuts, Tell a friend)
+#, machine
+	Move between the categories and the download list	جابه‌جایی بین دسته‌ها و فهرست دانلود
 #. text in the Scheduler window
 #, machine
 	Move down	انتقال به پایین
@@ -3071,7 +3067,7 @@
 #. message or event log entry in the main window
 #, machine
 	No web addresses were found in {file}.	هیچ آدرس وبی در {file} یافت نشد.
-#. text in the Options window; text in the Download video window
+#. text in the Download video window
 #. in the Subtitles list of Download video: download no subtitles
 #, machine
 	None	هیچ‌کدام
@@ -3129,10 +3125,10 @@
 #, machine
 	Not in a queue	در صف نیست
 #. text in helpers.rs
+#. Video helpers: no copy of this helper yet
 #, machine
 	Not installed yet	هنوز نصب نشده است
-#. text in cnl.rs; button in helpers.rs
-#. button in the Click'n'Load window: refuse these links, ask again next time
+#. button in helpers.rs
 #, machine
 	Not now	فعلا نه
 #. text in helpers.rs
@@ -3280,9 +3276,7 @@
 #. button that opens the torrent's containing folder in the file manager
 #, machine
 	Open folder	باز کردن پوشه
-#. text in the Link grabber window; text in a download's progress window
-#. Link grabber, a link's status: the remedy from the failure's sentence, for a site link that is a web page, not the file (and a server that sent a web page instead of it). The sentence is the cell's hover tip
-#. Link grabber, a link's status: the remedy from the failure's sentence, for a server that sent a web page instead of the file. The sentence is the cell's hover tip
+#. text in a download's progress window
 #. button in a download's progress window when the site sent a web page (a waiting page, a captcha) instead of the file: opens the download's link in the web browser
 #, machine
 	Open in browser	باز کردن در مرورگر
@@ -3400,7 +3394,6 @@
 	Password	گذرواژه
 #. text in the Link grabber window; text in the Options window
 #. Link grabber: the package's archives' password (a label before its box)
-#. Options → Add an account: label before the field for the password at the debrid service
 #, machine
 	Password:	گذرواژه:
 #. text in the Add torrent window
@@ -3676,9 +3669,8 @@
 #. {name} = a file name (keep the braces as they are)
 #, machine
 	Remove {name} from the list?	{name} از فهرست حذف شود؟
-#. text in a download's progress window; text in torrent_rename.rs
+#. text in a download's progress window
 #. noun: label before the deferred new file or folder name in the progress window
-#. noun: label before the new file or folder name in Add torrent
 #, machine
 	Rename	تغییر نام
 #. text in the Batch download window
@@ -3842,6 +3834,10 @@
 #. text in the Batch download window
 #, machine
 	Second file:	فایل دوم:
+#. text in a dialog box
+#. title of the folder picker
+#, machine
+	Select a folder	انتخاب یک پوشه
 #. button in playlistdlg.rs; button in the Add torrent window; text in torrentfiles.rs
 #. button in Download video for a playlist: tick every video
 #, machine
@@ -4655,6 +4651,9 @@
 #. why an archive wasn't extracted (after "Couldn't extract {name}: ")
 #, machine
 	the password is wrong	گذرواژه اشتباه است
+#. text in errors.rs
+#, machine
+	the path is too long for Windows: {path}	مسیر برای Windows خیلی طولانی است: {path}
 #. text in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. why updates could not be checked: the newest release on the site has no number
 #, machine
@@ -4732,10 +4731,6 @@
 #. the Download video window: the site's bot check (Cloudflare) turned yt-dlp away and no browser cookies were used
 #, machine
 	The site's bot check (Cloudflare) refused yt-dlp. If the page opens in your browser, choose that browser in Options → Sites Logins → Cookies for video sites and look the page up again, or use the Download video button over the video.	بررسی ربات سایت (Cloudflare) yt-dlp را رد کرد. اگر صفحه در مرورگر شما باز می‌شود، آن مرورگر را در گزینه‌ها ← ورود به سایت‌ها ← کوکی‌ها برای سایت‌های ویدئویی انتخاب کنید و دوباره صفحه را جستجو کنید، یا از دکمه بارگیری ویدئو روی ویدئو استفاده کنید.
-#. text in the Download video window
-#. the Download video window: the site's certificate is trusted neither by yt-dlp nor by the computer (asked again with the computer's certificates, #955); usually an antivirus or a proxy that reads secure (HTTPS) connections signs sites with a certificate of its own
-#, machine
-	The site's certificate isn't trusted, by yt-dlp nor by this computer: an antivirus's web filter or a proxy that reads HTTPS may be in the way. Turn its HTTPS scanning off, or add its certificate to the computer's, then look the page up again.	گواهی سایت نه توسط yt-dlp و نه توسط این رایانه مورد اعتماد نیست: فیلتر وب یک آنتی‌ویروس یا یک پروکسی که HTTPS را می‌خواند ممکن است مانع باشد. اسکن HTTPS آن را خاموش کنید، یا گواهی آن را به رایانه اضافه کنید، سپس صفحه را دوباره جستجو کنید.
 #. text in errors.rs
 #. why a download failed: the site's security certificate (what proves a secure, HTTPS, site is the one it says) is past its end date. Browsers warn about the same site
 #, machine
@@ -4744,10 +4739,6 @@
 #. why a download failed: the site's security certificate was made for other site names than the one in the address
 #, machine
 	the site's security certificate is for another site name, so MDM can't be sure it's the real site (your browser warns about it too)	گواهی امنیتی سایت برای نام سایتی دیگر صادر شده است، بنابراین MDM نمی‌تواند مطمئن باشد که این سایت واقعی است (مرورگر شما نیز درباره آن هشدار می‌دهد)
-#. text in errors.rs
-#. why a download failed: the site's security certificate is made for other uses than a website (its "extended key usage" leaves out web servers)
-#, machine
-	the site's security certificate isn't made for websites, so MDM can't be sure it's the real site	گواهی امنیتی سایت برای وب‌سایت‌ها صادر نشده است، بنابراین MDM نمی‌تواند مطمئن باشد که سایت واقعی است
 #. text in errors.rs
 #. why a download failed: the site's security certificate was signed by the site itself or by an issuer this computer doesn't trust. Browsers warn about the same site
 #, machine
@@ -4764,6 +4755,14 @@
 #. why a download failed: the issuer of the site's security certificate took it back
 #, machine
 	the site's security certificate was revoked by its issuer, so MDM won't trust it	گواهی امنیتی سایت توسط صادرکننده آن باطل شده است، بنابراین MDM به آن اعتماد نمی‌کند
+#. text in the Download video window
+#. the Download video window: the site's certificate is trusted neither by yt-dlp nor by the computer (asked again with the computer's certificates, #955); usually an antivirus or a proxy that reads secure (HTTPS) connections signs sites with a certificate of its own
+#, machine
+	The site's certificate isn't trusted, by yt-dlp nor by this computer: an antivirus's web filter or a proxy that reads HTTPS may be in the way. Turn its HTTPS scanning off, or add its certificate to the computer's, then look the page up again.	گواهی سایت نه توسط yt-dlp و نه توسط این رایانه مورد اعتماد نیست: فیلتر وب یک آنتی‌ویروس یا یک پروکسی که HTTPS را می‌خواند ممکن است مانع باشد. اسکن HTTPS آن را خاموش کنید، یا گواهی آن را به رایانه اضافه کنید، سپس صفحه را دوباره جستجو کنید.
+#. text in errors.rs
+#. why a download failed: the site's security certificate is made for other uses than a website (its "extended key usage" leaves out web servers)
+#, machine
+	the site's security certificate isn't made for websites, so MDM can't be sure it's the real site	گواهی امنیتی سایت برای وب‌سایت‌ها صادر نشده است، بنابراین MDM نمی‌تواند مطمئن باشد که سایت واقعی است
 #. text in crashui.rs
 #. crash report window: the symbols couldn't be downloaded; the report still works
 #, machine
@@ -5040,7 +5039,7 @@
 #. title of the separate window listing a torrent's files
 #, machine
 	Torrent files	فایل‌های تورنت
-#. message or event log entry in the main window; window title in the Add torrent window
+#. window title in the Add torrent window
 #, machine
 	Torrent settings	تنظیمات تورنت
 #. text in torrent downloads
@@ -5602,7 +5601,7 @@
 #, machine
 	Your own program: {path} ({version})	برنامه شما: {path} ({version})
 #. text in helpers.rs
-#. Video helpers: {path} = the system's yt-dlp, ffmpeg or gallery-dl
+#. Video helpers (macOS, Linux): {path} = the system's ffmpeg
 #, machine
 	Your system's: {path}	سیستم شما: {path}
 #. text in the Download video window
@@ -5729,8 +5728,7 @@
 #. a kind of file, by its extension: {ext} = "ZIP", "PDF"…
 #, machine
 	{ext} File	فایل {ext}
-#. text in the main window's messages (deleting downloads' files)
-#. a message: a deleted download's file stayed on the disk; {file} = its name
+#. message or event log entry in the main window
 #. {error} = an error message (keep the braces as they are)
 #, machine
 	{file} could not be deleted from the disk: {error}	حذف {file} از دیسک امکان‌پذیر نبود: {error}
@@ -5749,6 +5747,9 @@
 #. {size} = a file size such as "4.2 MB" (keep the braces as they are)
 #, machine
 	{file} is too large to be a list of addresses ({size}). Import reads text files, web pages and .ef2 exports of up to {limit}.	حجم {file} برای استفاده به‌عنوان فهرست نشانی بیش از حد بزرگ است ({size}). قابلیت وارد کردن، فایل‌های متنی، صفحات وب و فایل‌های خروجی .ef2 را تا حجم {limit} می‌خواند.
+#. text in a dialog box
+#, machine
+	{file} was moved elsewhere by dragging it out of Download complete, and MDM couldn't learn where. Look for it where you dropped it.	فایل «{file}» با کشیدن از «بارگیری کامل شد» به جای دیگری منتقل شد و MDM نتوانست مکان آن را پیدا کند. آن را در مکانی که رها کردید جست‌وجو کنید.
 #. text in the Checksum window
 #. {algorithm} = a checksum algorithm such as "SHA-256" (keep the braces as they are)
 #, machine
@@ -6519,6 +6520,10 @@ key	Shift+Up / Shift+Down	Shift+بالا / Shift+پایین
 #. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
 #, machine
+key	Tab	Tab
+#. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
+#. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
+#, machine
 key	Type a name	تایپ یک نام
 #. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
@@ -6569,7 +6574,6 @@ menu	&Exit	&خروج
 menu	&Import	&وارد کردن
 #. menu command in the main window
 #. View menu: submenu choosing how large MDM draws its windows and text (100 % to 200 %), as a browser's zoom
-#. View → Interface size: percentage step in a submenu
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Interface size	اندازه &رابط
@@ -6630,11 +6634,6 @@ menu	&Scheduler and queues	&زمان‌بندی و صف‌ها
 #, machine
 menu	&Show hidden tabs	نمایش زبانه‌های &پنهان
 #. menu command in the main window
-#. View → File icons: show only simple generic file-type icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	&Simple icons	آیکون‌های &ساده
-#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6647,11 +6646,6 @@ menu	&Stop All	&توقف همه
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Stop Download	توقف &دانلود
-#. menu command in the main window
-#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	&Thumbnails and file icons	&تصاویر بندانگشتی و آیکون‌های پرونده
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6866,11 +6860,6 @@ menu	Emerald	زمرد
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 #, machine
 menu	Extract	استخراج
-#. menu command in the main window
-#. View menu: submenu choosing between per-file thumbnails and simple icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	File &icons	آیکو&ن‌های پرونده
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it
@@ -7137,7 +7126,7 @@ menu	To &IDM export file...	به فایل صادراتی &IDM...
 #. the trailing ... means it opens a window: keep it
 #, machine
 menu	To &text file...	به فایل &متنی...
-#. menu command in the main window; menu command in the main window (menus, toolbar, Categories pane)
+#. menu command in the main window
 #. noun: the toolbar (submenu of View with its settings)
 #, machine
 menu	Toolbar	نوار ابزار

@@ -161,7 +161,7 @@
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 	&Apply	应用(&A)
-#. text in the Scheduler window; button in standard windows
+#. text in the Scheduler window
 #. verb: close the window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -472,7 +472,7 @@
 #. item in the Categories tree in the main window
 #, machine
 	All Downloads	所有下载任务
-#. message or event log entry in the main window; text in standard windows
+#. message or event log entry in the main window
 #, machine
 	All files	所有文件
 #. text in helpers.rs
@@ -953,9 +953,7 @@
 #. the list's Status column while a torrent's files or a finished file are checked (against the torrent's hashes or a checksum); {percent} how much is checked, e.g. "42%". One short word: the column is narrow
 #, machine
 	Checking {percent}	正在检查 {percent}
-#. text in the Checksum window; text in extension.rs; text in the Link grabber window; text in the Options window
-#. in the browser extension's window, while it reads whether the browsers can reach MDM (a moment, usually)
-#. Test browser integration, while it reads where browser integration stands (a moment, usually)
+#. text in the Checksum window; text in the Link grabber window
 #. the trailing ... means it is still going on: keep it
 #, machine
 	Checking...	正在检查...
@@ -1220,7 +1218,7 @@
 #. text in the Options window
 #, machine
 	Default max. conn. number	默认最大连接数
-#. text in the main window's messages (deleting downloads' files); button in a dialog box; button in the Options window; button in rssdlg.rs
+#. message or event log entry in the main window; button in a dialog box; button in the Options window; button in rssdlg.rs
 #. button: deletes the category
 #. verb: delete the item
 #, machine
@@ -1769,11 +1767,6 @@
 #. checkbox in the Find window
 #, machine
 	File name or part of the name	文件名或名称的一部分
-#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
-#. a download's status (state it is in, not a command)
-#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
-#, machine
-	File not found	找不到文件
 #. window title in a download's Properties window
 #, machine
 	File Properties	文件属性
@@ -2797,7 +2790,7 @@
 #. text in crashui.rs
 #, machine
 	Mister Download Manager crash report	Mister Download Manager 崩溃报告
-#. text in crashui.rs; text in the Help menu's windows (About, updates, shortcuts, Tell a friend)
+#. text in crashui.rs
 #. crash report window heading: an internal error, MDM still running
 #, machine
 	Mister Download Manager hit an internal error	Mister Download Manager 遇到内部错误
@@ -2880,6 +2873,9 @@
 #. what a keyboard shortcut does in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #, machine
 	Move a page up / down	向上/向下翻一页
+#. what a keyboard shortcut does in the Help menu's windows (About, updates, shortcuts, Tell a friend)
+#, machine
+	Move between the categories and the download list	在类别和下载列表之间切换
 #. text in the Scheduler window
 #, machine
 	Move down	下移
@@ -3191,6 +3187,7 @@
 #, machine
 	Not in a queue	不在队列中
 #. text in helpers.rs
+#. Video helpers: no copy of this helper yet
 #, machine
 	Not installed yet	尚未安装
 #. text in the Link grabber window
@@ -3346,9 +3343,7 @@
 #. button that opens the torrent's containing folder in the file manager
 #, machine
 	Open folder	打开文件夹
-#. text in the Link grabber window; text in a download's progress window
-#. Link grabber, a link's status: the remedy from the failure's sentence, for a site link that is a web page, not the file (and a server that sent a web page instead of it). The sentence is the cell's hover tip
-#. Link grabber, a link's status: the remedy from the failure's sentence, for a server that sent a web page instead of the file. The sentence is the cell's hover tip
+#. text in a download's progress window
 #. button in a download's progress window when the site sent a web page (a waiting page, a captcha) instead of the file: opens the download's link in the web browser
 #, machine
 	Open in browser	在浏览器中打开
@@ -3916,6 +3911,10 @@
 #. text in the Batch download window
 #, machine
 	Second file:	第二个文件：
+#. text in a dialog box
+#. title of the folder picker
+#, machine
+	Select a folder	选择文件夹
 #. button in playlistdlg.rs; button in the Add torrent window; text in torrentfiles.rs
 #. button in Download video for a playlist: tick every video
 #, machine
@@ -4740,6 +4739,9 @@
 #. why an archive wasn't extracted (after "Couldn't extract {name}: ")
 #, machine
 	the password is wrong	密码错误
+#. text in errors.rs
+#, machine
+	the path is too long for Windows: {path}	路径超出 Windows 长度限制：{path}
 #. text in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. why updates could not be checked: the newest release on the site has no number
 #, machine
@@ -4821,10 +4823,6 @@
 #. the Download video window: the site's bot check (Cloudflare) turned yt-dlp away and no browser cookies were used
 #, machine
 	The site's bot check (Cloudflare) refused yt-dlp. If the page opens in your browser, choose that browser in Options → Sites Logins → Cookies for video sites and look the page up again, or use the Download video button over the video.	站点的人机校验（Cloudflare）拒绝了 yt-dlp。若该页面能在浏览器中打开，请在“选项”→“站点登录”→“视频网站的 Cookie”中选择该浏览器后重新解析，或点击视频上方的“下载视频”按钮。
-#. text in the Download video window
-#. the Download video window: the site's certificate is trusted neither by yt-dlp nor by the computer (asked again with the computer's certificates, #955); usually an antivirus or a proxy that reads secure (HTTPS) connections signs sites with a certificate of its own
-#, machine
-	The site's certificate isn't trusted, by yt-dlp nor by this computer: an antivirus's web filter or a proxy that reads HTTPS may be in the way. Turn its HTTPS scanning off, or add its certificate to the computer's, then look the page up again.	yt-dlp 和此计算机均不信任该网站的证书：可能是防病毒软件的网络筛选器或读取 HTTPS 的代理在阻止。请关闭其 HTTPS 扫描，或将其证书添加到计算机中，然后重新查找该页面。
 #. text in errors.rs
 #. why a download failed: the site's security certificate (what proves a secure, HTTPS, site is the one it says) is past its end date. Browsers warn about the same site
 #, machine
@@ -4833,10 +4831,6 @@
 #. why a download failed: the site's security certificate was made for other site names than the one in the address
 #, machine
 	the site's security certificate is for another site name, so MDM can't be sure it's the real site (your browser warns about it too)	网站的安全证书适用于其他网站名称，MDM 无法确定这是否是真实网站（您的浏览器也会发出警告）
-#. text in errors.rs
-#. why a download failed: the site's security certificate is made for other uses than a website (its "extended key usage" leaves out web servers)
-#, machine
-	the site's security certificate isn't made for websites, so MDM can't be sure it's the real site	网站的安全证书并非用于网站身份验证，因此 MDM 无法确定该网站是否真实可信
 #. text in errors.rs
 #. why a download failed: the site's security certificate was signed by the site itself or by an issuer this computer doesn't trust. Browsers warn about the same site
 #, machine
@@ -4853,6 +4847,14 @@
 #. why a download failed: the issuer of the site's security certificate took it back
 #, machine
 	the site's security certificate was revoked by its issuer, so MDM won't trust it	网站的安全证书已被颁发者撤销，MDM 不会信任该证书
+#. text in the Download video window
+#. the Download video window: the site's certificate is trusted neither by yt-dlp nor by the computer (asked again with the computer's certificates, #955); usually an antivirus or a proxy that reads secure (HTTPS) connections signs sites with a certificate of its own
+#, machine
+	The site's certificate isn't trusted, by yt-dlp nor by this computer: an antivirus's web filter or a proxy that reads HTTPS may be in the way. Turn its HTTPS scanning off, or add its certificate to the computer's, then look the page up again.	yt-dlp 和此计算机均不信任该网站的证书：可能是防病毒软件的网络筛选器或读取 HTTPS 的代理在阻止。请关闭其 HTTPS 扫描，或将其证书添加到计算机中，然后重新查找该页面。
+#. text in errors.rs
+#. why a download failed: the site's security certificate is made for other uses than a website (its "extended key usage" leaves out web servers)
+#, machine
+	the site's security certificate isn't made for websites, so MDM can't be sure it's the real site	网站的安全证书并非用于网站身份验证，因此 MDM 无法确定该网站是否真实可信
 #. text in crashui.rs
 #. crash report window: the symbols couldn't be downloaded; the report still works
 #, machine
@@ -5132,7 +5134,7 @@
 #. title of the separate window listing a torrent's files
 #, machine
 	Torrent files	种子文件
-#. message or event log entry in the main window; window title in the Add torrent window
+#. window title in the Add torrent window
 #, machine
 	Torrent settings	种子设置
 #. text in torrent downloads
@@ -5701,7 +5703,7 @@
 #, machine
 	Your own program: {path} ({version})	您自己的程序：{path}（{version}）
 #. text in helpers.rs
-#. Video helpers: {path} = the system's yt-dlp, ffmpeg or gallery-dl
+#. Video helpers (macOS, Linux): {path} = the system's ffmpeg
 #, machine
 	Your system's: {path}	系统自带的程序：{path}
 #. text in the Download video window
@@ -5828,8 +5830,7 @@
 #. a kind of file, by its extension: {ext} = "ZIP", "PDF"…
 #, machine
 	{ext} File	{ext} 文件
-#. text in the main window's messages (deleting downloads' files)
-#. a message: a deleted download's file stayed on the disk; {file} = its name
+#. message or event log entry in the main window
 #. {error} = an error message (keep the braces as they are)
 #, machine
 	{file} could not be deleted from the disk: {error}	无法从磁盘中删除 {file}：{error}
@@ -5848,6 +5849,9 @@
 #. {size} = a file size such as "4.2 MB" (keep the braces as they are)
 #, machine
 	{file} is too large to be a list of addresses ({size}). Import reads text files, web pages and .ef2 exports of up to {limit}.	{file} ({size}) 过大，无法作为地址列表。导入功能可读取大小不超过 {limit} 的文本文件、网页和 .ef2 导出文件。
+#. text in a dialog box
+#, machine
+	{file} was moved elsewhere by dragging it out of Download complete, and MDM couldn't learn where. Look for it where you dropped it.	{file} 已从“下载完成”拖出并移动到其他位置，MDM 无法识别具体位置。请在您放置它的位置查找。
 #. text in the Checksum window
 #. {algorithm} = a checksum algorithm such as "SHA-256" (keep the braces as they are)
 #, machine
@@ -6636,6 +6640,10 @@ key	Shift+Up / Shift+Down	Shift+向上 / Shift+向下
 #. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
 #, machine
+key	Tab	Tab
+#. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
+#. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
+#, machine
 key	Type a name	键入名称
 #. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
@@ -6686,7 +6694,6 @@ menu	&Exit	退出(&E)
 menu	&Import	导入(&I)
 #. menu command in the main window
 #. View menu: submenu choosing how large MDM draws its windows and text (100 % to 200 %), as a browser's zoom
-#. View → Interface size: percentage step in a submenu
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Interface size	界面大小(&I)
@@ -6747,11 +6754,6 @@ menu	&Scheduler and queues	计划任务和队列(&S)
 #, machine
 menu	&Show hidden tabs	显示隐藏的选项卡(&S)
 #. menu command in the main window
-#. View → File icons: show only simple generic file-type icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	&Simple icons	简单图标(&S)
-#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6764,11 +6766,6 @@ menu	&Stop All	全部停止(&S)
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Stop Download	停止下载(&S)
-#. menu command in the main window
-#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	&Thumbnails and file icons	缩略图和文件图标(&T)
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -6978,11 +6975,6 @@ menu	Emerald	翡翠绿
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 #, machine
 menu	Extract	解压
-#. menu command in the main window
-#. View menu: submenu choosing between per-file thumbnails and simple icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	File &icons	文件图标(&I)
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it
@@ -7249,7 +7241,7 @@ menu	To &IDM export file...	导出到 IDM 文件(&I)...
 #. the trailing ... means it opens a window: keep it
 #, machine
 menu	To &text file...	导出到文本文件(&T)...
-#. menu command in the main window; menu command in the main window (menus, toolbar, Categories pane)
+#. menu command in the main window
 #. noun: the toolbar (submenu of View with its settings)
 #, machine
 menu	Toolbar	工具栏

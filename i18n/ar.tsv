@@ -141,7 +141,7 @@
 #. verb: save the changes
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 	&Apply	&تطبيق
-#. text in the Scheduler window; button in standard windows
+#. text in the Scheduler window
 #. verb: close the window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 	&Close	&إغلاق
@@ -393,7 +393,7 @@
 	All	الكل
 #. item in the Categories tree in the main window
 	All Downloads	جميع التنزيلات
-#. message or event log entry in the main window; text in standard windows
+#. message or event log entry in the main window
 	All files	جميع الملفات
 #. text in helpers.rs
 	All set: on a page with a video, use Tasks → Download video from a page.	كل شيء جاهز: في صفحة تحتوي على فيديو، استخدم المهام ← تنزيل الفيديو من صفحة.
@@ -776,9 +776,7 @@
 #. the list's Status column while a torrent's files or a finished file are checked (against the torrent's hashes or a checksum); {percent} how much is checked, e.g. "42%". One short word: the column is narrow
 #, machine
 	Checking {percent}	قيد التحقق {percent}
-#. text in the Checksum window; text in extension.rs; text in the Link grabber window; text in the Options window
-#. in the browser extension's window, while it reads whether the browsers can reach MDM (a moment, usually)
-#. Test browser integration, while it reads where browser integration stands (a moment, usually)
+#. text in the Checksum window; text in the Link grabber window
 #. the trailing ... means it is still going on: keep it
 	Checking...	قيد التحقق...
 #. text in countries.rs
@@ -804,7 +802,7 @@
 #. text in countries.rs
 #. a country's name (where a download's server is)
 	Christmas Island	جزيرة كريسماس
-#. button in the download list; button in the Options window
+#. button in the download list
 #. verb: clears this filter
 	Clear	مسح
 #. text in cnl.rs
@@ -988,7 +986,7 @@
 	Default download settings	إعدادات التنزيل الافتراضية
 #. text in the Options window
 	Default max. conn. number	الحد الأقصى الافتراضي لعدد الاتصالات
-#. text in the main window's messages (deleting downloads' files); button in a dialog box; button in the Options window; button in rssdlg.rs
+#. message or event log entry in the main window; button in a dialog box; button in the Options window; button in rssdlg.rs
 #. button: deletes the category
 #. verb: delete the item
 	Delete	حذف
@@ -1423,11 +1421,6 @@
 	File name	اسم الملف
 #. checkbox in the Find window
 	File name or part of the name	اسم الملف أو جزء من الاسم
-#. item in the Categories tree in the download list; value in a column's filter list in the download list; text in the download list (sizes, speeds, status)
-#. a download's status (state it is in, not a command)
-#. a download's status (state it is in, not a command): finished, but the saved file was deleted or moved from its folder
-#, machine
-	File not found	الملف غير موجود
 #. window title in a download's Properties window
 	File Properties	خصائص الملف
 #. text in a download's progress window
@@ -2254,7 +2247,7 @@
 	Mister Download Manager Configuration	إعدادات Mister Download Manager
 #. text in crashui.rs
 	Mister Download Manager crash report	تقرير تعطل Mister Download Manager
-#. text in crashui.rs; text in the Help menu's windows (About, updates, shortcuts, Tell a friend)
+#. text in crashui.rs
 #. crash report window heading: an internal error, MDM still running
 	Mister Download Manager hit an internal error	واجه Mister Download Manager خطأ داخليا
 #. text in wake.rs
@@ -2319,6 +2312,8 @@
 	Move	نقل
 #. what a keyboard shortcut does in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 	Move a page up / down	نقل صفحة لأعلى/لأسفل
+#. what a keyboard shortcut does in the Help menu's windows (About, updates, shortcuts, Tell a friend)
+	Move between the categories and the download list	التنقل بين الفئات وقائمة التنزيلات
 #. text in the Scheduler window
 	Move down	نقل لأسفل
 #. text in a dialog box
@@ -2509,7 +2504,7 @@
 	No video this can download on that page	لا يوجد فيديو يمكن تنزيله في هذه الصفحة
 #. message or event log entry in the main window
 	No web addresses were found in {file}.	لم يتم العثور على عناوين ويب في {file}.
-#. text in the Options window; text in the Download video window
+#. text in the Download video window
 #. in the Subtitles list of Download video: download no subtitles
 	None	لا شيء
 #. text in the Download video window
@@ -2552,13 +2547,13 @@
 #. value in a column's filter list in the download list
 	Not in a queue	ليس في قائمة انتظار
 #. text in helpers.rs
+#. Video helpers: no copy of this helper yet
 	Not installed yet	لم يتم التثبيت بعد
 #. text in the Link grabber window
 #. Link grabber, a link's status: a web page sent it (Click'n'Load), so it isn't looked up (name, size, online) before it is added
 #, machine
 	Not looked up	لم يبحث عنه
-#. text in cnl.rs; button in helpers.rs
-#. button in the Click'n'Load window: refuse these links, ask again next time
+#. button in helpers.rs
 	Not now	ليس الآن
 #. text in helpers.rs
 	Not now? Get them later from Tasks → Download video from a page.	ليس الآن؟ احصل عليها لاحقا من المهام ← تنزيل فيديو من صفحة.
@@ -2674,9 +2669,7 @@
 #. title of the message when the folder of a downloaded file can't be shown
 #. button that opens the torrent's containing folder in the file manager
 	Open folder	فتح المجلد
-#. text in the Link grabber window; text in a download's progress window
-#. Link grabber, a link's status: the remedy from the failure's sentence, for a site link that is a web page, not the file (and a server that sent a web page instead of it). The sentence is the cell's hover tip
-#. Link grabber, a link's status: the remedy from the failure's sentence, for a server that sent a web page instead of the file. The sentence is the cell's hover tip
+#. text in a download's progress window
 #. button in a download's progress window when the site sent a web page (a waiting page, a captcha) instead of the file: opens the download's link in the web browser
 #, machine
 	Open in browser	فتح في المستعرض
@@ -2776,7 +2769,6 @@
 	Password	كلمة المرور
 #. text in the Link grabber window; text in the Options window
 #. Link grabber: the package's archives' password (a label before its box)
-#. Options → Add an account: label before the field for the password at the debrid service
 	Password:	كلمة المرور:
 #. text in the Add torrent window
 	Paste a magnet link or choose a .torrent file, then Look up.	الصق رابط مغناطيسي أو اختر ملف .torrent، ثم ابحث.
@@ -2853,10 +2845,6 @@
 #. text in debrid.rs
 #. Options → Accounts: a debrid account's state; {days} the days of premium left
 	premium, {days} days left	مدفوع، تبقى {days} يوما
-#. text in the Options window
-#. Options → General: shown inside the shortcut recorder box while waiting for the user to press a 2-key or 3-key shortcut (#558)
-#. the trailing ... means it is still going on: keep it
-	Press keys...	اضغط المفاتيح...
 #. button in a dialog box
 #. verb: open the part already downloaded
 	Preview	معاينة
@@ -2996,9 +2984,8 @@
 #. {name} = a file name (keep the braces as they are)
 #, machine
 	Remove {name} from the list?	إزالة {name} من القائمة؟
-#. text in a download's progress window; text in torrent_rename.rs
+#. text in a download's progress window
 #. noun: label before the deferred new file or folder name in the progress window
-#. noun: label before the new file or folder name in Add torrent
 #, machine
 	Rename	إعادة التسمية
 #. text in the Batch download window
@@ -3124,6 +3111,9 @@
 	Search:	بحث:
 #. text in the Batch download window
 	Second file:	الملف الثاني:
+#. text in a dialog box
+#. title of the folder picker
+	Select a folder	تحديد مجلد
 #. button in playlistdlg.rs; button in the Add torrent window; text in torrentfiles.rs
 #. button in Download video for a playlist: tick every video
 	Select all	تحديد الكل
@@ -3231,9 +3221,6 @@
 #. {error} = an error message (keep the braces as they are)
 #, machine
 	Sharing stopped: {error}	توقف البذر: {error}
-#. text in the Options window
-#. Options → General: label for the global keyboard shortcut that shows or hides MDM's main window (#558)
-	Shortcut to show or hide window:	اختصار إظهار أو إخفاء النافذة:
 #. text in the download list
 	Show	إظهار
 #. message or event log entry in the main window
@@ -3796,6 +3783,8 @@
 #. text in extracting archives (a download's log, the Archive password window)
 #. why an archive wasn't extracted (after "Couldn't extract {name}: ")
 	the password is wrong	كلمة المرور خاطئة
+#. text in errors.rs
+	the path is too long for Windows: {path}	المسار أطول من الحد الذي يسمح به Windows: {path}
 #. text in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. why updates could not be checked: the newest release on the site has no number
 	the release has no version	الإصدار ليس له رقم
@@ -3861,10 +3850,6 @@
 #. the Download video window: the site's bot check (Cloudflare) turned yt-dlp away and no browser cookies were used
 #, machine
 	The site's bot check (Cloudflare) refused yt-dlp. If the page opens in your browser, choose that browser in Options → Sites Logins → Cookies for video sites and look the page up again, or use the Download video button over the video.	رفض فحص الروبوت الخاص بالموقع (Cloudflare) برنامج yt-dlp. إذا فتحت الصفحة في مستعرضك، فاختر هذا المستعرض في الخيارات ← تسجيلات دخول المواقع ← ملفات تعريف الارتباط لمواقع الفيديو وابحث عن الصفحة مرة أخرى، أو استخدم زر تنزيل الفيديو الموجود فوق الفيديو.
-#. text in the Download video window
-#. the Download video window: the site's certificate is trusted neither by yt-dlp nor by the computer (asked again with the computer's certificates, #955); usually an antivirus or a proxy that reads secure (HTTPS) connections signs sites with a certificate of its own
-#, machine
-	The site's certificate isn't trusted, by yt-dlp nor by this computer: an antivirus's web filter or a proxy that reads HTTPS may be in the way. Turn its HTTPS scanning off, or add its certificate to the computer's, then look the page up again.	شهادة الموقع غير موثوق بها، لا بواسطة yt-dlp ولا بواسطة هذا الكمبيوتر: قد يكون فلتر الويب الخاص ببرنامج مكافحة الفيروسات أو وكيل يقرأ HTTPS هو السبب. أوقف تشغيل فحص HTTPS الخاص به، أو أضف شهادته إلى الكمبيوتر، ثم ابحث عن الصفحة مرة أخرى.
 #. text in errors.rs
 #. why a download failed: the site's security certificate (what proves a secure, HTTPS, site is the one it says) is past its end date. Browsers warn about the same site
 #, machine
@@ -3873,10 +3858,6 @@
 #. why a download failed: the site's security certificate was made for other site names than the one in the address
 #, machine
 	the site's security certificate is for another site name, so MDM can't be sure it's the real site (your browser warns about it too)	شهادة أمان الموقع مخصصة لاسم موقع آخر، لذلك لا يمكن لـ MDM التأكد من أنه الموقع الحقيقي (يحذرك مستعرضك منه أيضا)
-#. text in errors.rs
-#. why a download failed: the site's security certificate is made for other uses than a website (its "extended key usage" leaves out web servers)
-#, machine
-	the site's security certificate isn't made for websites, so MDM can't be sure it's the real site	شهادة أمان الموقع غير مخصصة لمواقع الويب، لذا لا يمكن لـ MDM التأكد من أنه الموقع الحقيقي
 #. text in errors.rs
 #. why a download failed: the site's security certificate was signed by the site itself or by an issuer this computer doesn't trust. Browsers warn about the same site
 #, machine
@@ -3893,6 +3874,14 @@
 #. why a download failed: the issuer of the site's security certificate took it back
 #, machine
 	the site's security certificate was revoked by its issuer, so MDM won't trust it	أبطلت جهة الإصدار شهادة أمان الموقع، لذلك لن يثق بها MDM
+#. text in the Download video window
+#. the Download video window: the site's certificate is trusted neither by yt-dlp nor by the computer (asked again with the computer's certificates, #955); usually an antivirus or a proxy that reads secure (HTTPS) connections signs sites with a certificate of its own
+#, machine
+	The site's certificate isn't trusted, by yt-dlp nor by this computer: an antivirus's web filter or a proxy that reads HTTPS may be in the way. Turn its HTTPS scanning off, or add its certificate to the computer's, then look the page up again.	شهادة الموقع غير موثوق بها، لا بواسطة yt-dlp ولا بواسطة هذا الكمبيوتر: قد يكون فلتر الويب الخاص ببرنامج مكافحة الفيروسات أو وكيل يقرأ HTTPS هو السبب. أوقف تشغيل فحص HTTPS الخاص به، أو أضف شهادته إلى الكمبيوتر، ثم ابحث عن الصفحة مرة أخرى.
+#. text in errors.rs
+#. why a download failed: the site's security certificate is made for other uses than a website (its "extended key usage" leaves out web servers)
+#, machine
+	the site's security certificate isn't made for websites, so MDM can't be sure it's the real site	شهادة أمان الموقع غير مخصصة لمواقع الويب، لذا لا يمكن لـ MDM التأكد من أنه الموقع الحقيقي
 #. text in crashui.rs
 #. crash report window: the symbols couldn't be downloaded; the report still works
 	The symbols couldn't be fetched: some lines of the report show addresses instead of names (the developers can still read them).	تعذر جلب الرموز: تظهر بعض أسطر التقرير عناوين بدلا من الأسماء (لا يزال بإمكان المطورين قراءتها).
@@ -4042,9 +4031,6 @@
 #. error: a program chosen as yt-dlp or ffmpeg didn't answer as one; {name} = yt-dlp or ffmpeg
 #. {name} = a file name (keep the braces as they are)
 	this program isn't {name}	هذا البرنامج ليس {name}
-#. text in the Options window
-#. Options → General: shown when the chosen global shortcut is already registered by another program (#558)
-	This shortcut is already in use	هذا الاختصار قيد الاستخدام بالفعل
 #. text in errors.rs
 #. why a download failed: the site's bot check (Cloudflare) lets browsers through, not programs. Alt+click: the link clicked with the Alt key held, which leaves the download to the browser
 #, machine
@@ -4121,7 +4107,7 @@
 #. the kind of file the Open dialog lists
 #. title of the separate window listing a torrent's files
 	Torrent files	ملفات التورنت
-#. message or event log entry in the main window; window title in the Add torrent window
+#. window title in the Add torrent window
 	Torrent settings	إعدادات التورنت
 #. text in torrent downloads
 #. an error: Torrent settings ask for the proxy, and Options → Proxy / Socks has no SOCKS5 one
@@ -4478,9 +4464,6 @@
 #. the Scheduler, under "Wake the computer to run this queue" (Windows): "Allow wake timers" is on when plugged in, off on battery
 	Windows allows wake timers only while plugged in	تسمح Windows بمؤقتات الإيقاظ فقط أثناء توصيل الجهاز بالتيار الكهربائي
 #. text in the Options window
-#. Options → General → Shortcut to show or hide window: shown in the disabled shortcut box on Linux (#558)
-	Windows and macOS	Windows و macOS
-#. text in the Options window
 #. tooltip of "Mark downloaded files as coming from the internet" on Windows
 #, machine
 	Windows checks the files marked this way: SmartScreen before a program first runs, Office's Protected View before a document opens. Unticked, or under Windows' policy "Do not preserve zone information in file attachments", no download is marked.	يتحقق Windows من الملفات التي تم وضع علامة عليها بهذه الطريقة: SmartScreen قبل تشغيل البرنامج لأول مرة، وProtected View في Office قبل فتح المستند. إذا لم يتم تحديدها، أو بموجب سياسة Windows «عدم الاحتفاظ بمعلومات المنطقة في مرفقات الملفات»، فلن يتم وضع علامة على أي تنزيل.
@@ -4570,7 +4553,7 @@
 #. {version} = a version number (keep the braces as they are)
 	Your own program: {path} ({version})	البرنامج الخاص بك: {path} ({version})
 #. text in helpers.rs
-#. Video helpers: {path} = the system's yt-dlp, ffmpeg or gallery-dl
+#. Video helpers (macOS, Linux): {path} = the system's ffmpeg
 	Your system's: {path}	نسخة نظامك: {path}
 #. text in the Download video window
 #. in Download video and the browser's video menu: yt-dlp had no JavaScript runtime, so YouTube listed only some qualities (often only the sound); Node.js and Deno are program names
@@ -4675,8 +4658,7 @@
 #. text in a download's Properties window
 #. a kind of file, by its extension: {ext} = "ZIP", "PDF"…
 	{ext} File	ملف {ext}
-#. text in the main window's messages (deleting downloads' files)
-#. a message: a deleted download's file stayed on the disk; {file} = its name
+#. message or event log entry in the main window
 #. {error} = an error message (keep the braces as they are)
 	{file} could not be deleted from the disk: {error}	تعذر حذف {file} من القرص: {error}
 #. text in a dialog box
@@ -5375,6 +5357,9 @@ key	Shift+F10 / Menu	Shift+F10 / قائمة
 key	Shift+Up / Shift+Down	Shift+Up / Shift+Down
 #. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
+key	Tab	Tab
+#. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
+#. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
 key	Type a name	اكتب اسما
 #. key name or combination in the Help menu's windows (About, updates, shortcuts, Tell a friend)
 #. translate key names as the keyboard shows them (e.g. Strg for Ctrl)
@@ -5416,7 +5401,6 @@ menu	&Exit	&إنهاء
 menu	&Import	&استيراد
 #. menu command in the main window
 #. View menu: submenu choosing how large MDM draws its windows and text (100 % to 200 %), as a browser's zoom
-#. View → Interface size: percentage step in a submenu
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
 menu	&Interface size	حجم ال&واجهة
@@ -5466,11 +5450,6 @@ menu	&Scheduler and queues	&المجدول وقوائم الانتظار
 #, machine
 menu	&Show hidden tabs	إظهار علامات التبويب الم&خفية
 #. menu command in the main window
-#. View → File icons: show only simple generic file-type icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	&Simple icons	أيقونات &بسيطة
-#. menu command in the main window
 #. View → Text: letters drawn smooth, as Windows' modern apps draw them, anti-aliased at any size
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #, machine
@@ -5481,11 +5460,6 @@ menu	&Stop All	&إيقاف الكل
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Stop Download	إيقاف الت&نزيل
-#. menu command in the main window
-#. View → File icons: show per-file thumbnails and embedded icons (programs, audio cover art, archives, images)
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	&Thumbnails and file icons	المص&غرات وأيقونات الملفات
 #. menu command in the main window
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 menu	&Tray icon	أيقونة &علبة النظام
@@ -5650,11 +5624,6 @@ menu	Emerald	زمردي
 #. menu command in the main window
 #. verb: unpack the downloaded archive (zip, 7z, rar) into its folder
 menu	Extract	استخراج
-#. menu command in the main window
-#. View menu: submenu choosing between per-file thumbnails and simple icons
-#. & marks the keyboard shortcut letter: keep one & before a letter of the translation
-#, machine
-menu	File &icons	أ&يقونات الملفات
 #. menu command in the main window
 #. right-click → Torrent submenu: open the selected torrent's file list
 #. the trailing ... means it opens a window: keep it
@@ -5867,7 +5836,7 @@ menu	To &IDM export file...	إلى ملف تصدير &IDM...
 #. & marks the keyboard shortcut letter: keep one & before a letter of the translation
 #. the trailing ... means it opens a window: keep it
 menu	To &text file...	إلى ملف &نصي...
-#. menu command in the main window; menu command in the main window (menus, toolbar, Categories pane)
+#. menu command in the main window
 #. noun: the toolbar (submenu of View with its settings)
 menu	Toolbar	شريط الأدوات
 #. menu command in the main window
@@ -5953,3 +5922,7 @@ unit	{n} MB	{n} ميغابايت
 #. unit after a number in the download list (sizes, speeds, status)
 #. {n} = a number (keep the braces as they are)
 unit	{n} MB/sec	{n} ميغابايت/ثانية
+	Shortcut to show or hide window:	اختصار إظهار أو إخفاء النافذة:
+	Press keys...	اضغط المفاتيح...
+	This shortcut is already in use	هذا الاختصار قيد الاستخدام بالفعل
+	Windows and macOS	Windows و macOS
