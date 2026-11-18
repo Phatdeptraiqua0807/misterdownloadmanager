@@ -506,7 +506,7 @@ pub(crate) fn pe_icon_thumbnail(
         }
     }
 
-    let mut best: Option<((u32, usize), (u32, u32, Vec<u8>))> = None;
+    let mut best = None;
     for raw in icon_slices {
         let decoded = if raw.starts_with(b"\x89PNG\r\n\x1a\n") {
             decode_image_bytes(raw, max_px)
