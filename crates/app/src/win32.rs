@@ -6,6 +6,231 @@
 use std::ffi::c_void;
 use std::mem::{size_of, zeroed};
 
+/// Stable identity of the opened object; paths alone do not prove ownership.
+/// Volume, file index and creation time: file indexes are reused (FAT and exFAT derive them
+/// from the directory entry, ReFS does not promise uniqueness), a creation time tells a file
+/// that took the name later from the one recorded. Without all three, no identity.
+pub fn torrent_file_identity(file: &std::fs::File) -> std::io::Result<[u64; 5]> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        FILE_BASIC_INFO, FILE_ID_INFO, FileBasicInfo, FileIdInfo, GetFileInformationByHandleEx,
+    };
+    // SAFETY: every field of this output structure admits zero.
+    let mut id: FILE_ID_INFO = unsafe { zeroed() };
+    // SAFETY: every field of this output structure admits zero.
+    let mut basic: FILE_BASIC_INFO = unsafe { zeroed() };
+    // SAFETY: the file owns a live handle and info is a writable output structure.
+    if unsafe {
+        GetFileInformationByHandleEx(
+            file.as_raw_handle(),
+            FileIdInfo,
+            (&mut id as *mut FILE_ID_INFO).cast(),
+            size_of::<FILE_ID_INFO>() as u32,
+        )
+    } == 0
+    {
+        return Err(std::io::Error::last_os_error());
+    }
+    // SAFETY: the live handle and correctly sized output are valid for FileBasicInfo.
+    if unsafe {
+        GetFileInformationByHandleEx(
+            file.as_raw_handle(),
+            FileBasicInfo,
+            (&mut basic as *mut FILE_BASIC_INFO).cast(),
+            size_of::<FILE_BASIC_INFO>() as u32,
+        )
+    } == 0
+    {
+        return Err(std::io::Error::last_os_error());
+    }
+    if id.FileId.Identifier == [0; 16] || basic.CreationTime <= 0 || !keeps_file_ids(file) {
+        return Err(std::io::ErrorKind::Unsupported.into());
+    }
+    Ok([
+        id.VolumeSerialNumber,
+        u64::from_le_bytes(id.FileId.Identifier[..8].try_into().unwrap()),
+        u64::from_le_bytes(id.FileId.Identifier[8..].try_into().unwrap()),
+        basic.CreationTime as u64,
+        0,
+    ])
+}
+
+/// Whether the file's volume is NTFS or ReFS, where a file's index is its own and a recreated
+/// file gets a new one. FAT and exFAT make the index from the entry's place in its folder and
+/// restore a creation time within about 15 seconds ("tunnelling"), so a file saved under the
+/// same name just after another was deleted looks the same: there, no identity is given, and
+/// the files are never deleted by MDM and a start asks before writing to them.
+fn keeps_file_ids(file: &std::fs::File) -> bool {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::GetVolumeInformationByHandleW;
+    let mut name = [0u16; 32];
+    // SAFETY: the file owns a live handle; `name` is a writable buffer of the length given, and
+    // the other outputs are not asked for.
+    let ok = unsafe {
+        GetVolumeInformationByHandleW(
+            file.as_raw_handle(),
+            std::ptr::null_mut(),
+            0,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            name.as_mut_ptr(),
+            name.len() as u32,
+        )
+    };
+    if ok == 0 {
+        return false;
+    }
+    let end = name.iter().position(|c| *c == 0).unwrap_or(name.len());
+    let name = String::from_utf16_lossy(&name[..end]);
+    name.eq_ignore_ascii_case("NTFS") || name.eq_ignore_ascii_case("ReFS")
+}
+
+pub fn torrent_file_identity_at(path: &std::path::Path) -> std::io::Result<[u64; 5]> {
+    use std::os::windows::fs::OpenOptionsExt;
+    use windows_sys::Win32::Storage::FileSystem::{
+        FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_READ_ATTRIBUTES,
+    };
+    let file = std::fs::OpenOptions::new()
+        .access_mode(FILE_READ_ATTRIBUTES)
+        .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
+        .open(path)?;
+    torrent_file_identity(&file)
+}
+
+/// Open (or, with `create`, make with `create_new`) the file at `path` for the torrent engine
+/// without following a link at its end: `FILE_FLAG_OPEN_REPARSE_POINT` opens a symbolic link
+/// itself, not what it points to, and one is refused. A folder is refused too.
+pub fn open_torrent_file(path: &std::path::Path, create: bool) -> std::io::Result<std::fs::File> {
+    use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
+    use windows_sys::Win32::Storage::FileSystem::{
+        FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAG_OPEN_REPARSE_POINT,
+    };
+    let mut options = std::fs::OpenOptions::new();
+    options
+        .read(true)
+        .write(true)
+        .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    if create {
+        options.create_new(true);
+    }
+    let file = options.open(path)?;
+    let metadata = file.metadata()?;
+    let attributes = metadata.file_attributes();
+    if attributes & FILE_ATTRIBUTE_DIRECTORY != 0
+        || (attributes & FILE_ATTRIBUTE_REPARSE_POINT != 0 && metadata.file_type().is_symlink())
+    {
+        return Err(std::io::ErrorKind::InvalidInput.into());
+    }
+    Ok(file)
+}
+
+/// Where the opened object really is: the system's final path of the handle, links resolved.
+pub fn torrent_file_path(file: &std::fs::File) -> std::io::Result<std::path::PathBuf> {
+    use std::os::windows::{ffi::OsStringExt, io::AsRawHandle};
+    use windows_sys::Win32::Storage::FileSystem::GetFinalPathNameByHandleW;
+    let handle = file.as_raw_handle();
+    let mut buffer = vec![0u16; 1024];
+    loop {
+        // SAFETY: the live handle and a buffer of the length given.
+        let n = unsafe {
+            GetFinalPathNameByHandleW(handle, buffer.as_mut_ptr(), buffer.len() as u32, 0)
+        } as usize;
+        if n == 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        if n < buffer.len() {
+            buffer.truncate(n);
+            return Ok(std::ffi::OsString::from_wide(&buffer).into());
+        }
+        buffer.resize(n + 1, 0);
+    }
+}
+
+/// Delete the verified object through its handle, even if the path is replaced. The handle is
+/// opened sharing read, write and delete, so a program that has the file open (the torrent
+/// engine on its way out, an antivirus scanning a file just made, the indexer) does not stop it,
+/// and the name goes at once, as `std::fs::remove_file` does; where the system doesn't know that
+/// way (before Windows 10 1709) the older one is used. A refusal that is only a moment's
+/// contention is tried again a few times.
+pub fn remove_owned_torrent_file(
+    path: &std::path::Path,
+    expected: [u64; 5],
+) -> std::io::Result<bool> {
+    use std::os::windows::{fs::OpenOptionsExt, io::AsRawHandle};
+    use windows_sys::Win32::Storage::FileSystem::{
+        DELETE, FILE_DISPOSITION_FLAG_DELETE, FILE_DISPOSITION_FLAG_IGNORE_READONLY_ATTRIBUTE,
+        FILE_DISPOSITION_FLAG_POSIX_SEMANTICS, FILE_DISPOSITION_INFO, FILE_DISPOSITION_INFO_EX,
+        FILE_FLAG_OPEN_REPARSE_POINT, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ,
+        FILE_SHARE_WRITE, FileDispositionInfo, FileDispositionInfoEx, SetFileInformationByHandle,
+    };
+    let mut last = None;
+    for attempt in 0..4 {
+        if attempt > 0 {
+            std::thread::sleep(std::time::Duration::from_millis(100 * attempt));
+        }
+        let file = match std::fs::OpenOptions::new()
+            .access_mode(DELETE | FILE_READ_ATTRIBUTES)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
+            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+            .open(path)
+        {
+            Ok(file) => file,
+            // Gone already, or a refusal that may pass: look again.
+            Err(e) if matches!(e.raw_os_error(), Some(5 | 32)) => {
+                last = Some(e);
+                continue;
+            }
+            Err(e) => return Err(e),
+        };
+        if torrent_file_identity(&file)? != expected {
+            return Ok(false);
+        }
+        let handle = file.as_raw_handle();
+        let ex = FILE_DISPOSITION_INFO_EX {
+            Flags: FILE_DISPOSITION_FLAG_DELETE
+                | FILE_DISPOSITION_FLAG_POSIX_SEMANTICS
+                | FILE_DISPOSITION_FLAG_IGNORE_READONLY_ATTRIBUTE,
+        };
+        // SAFETY: the live handle permits deletion; the structure and its size are the ones
+        // the information class names.
+        if unsafe {
+            SetFileInformationByHandle(
+                handle,
+                FileDispositionInfoEx,
+                (&ex as *const FILE_DISPOSITION_INFO_EX).cast(),
+                size_of::<FILE_DISPOSITION_INFO_EX>() as u32,
+            )
+        } != 0
+        {
+            return Ok(true);
+        }
+        let first = std::io::Error::last_os_error();
+        let info = FILE_DISPOSITION_INFO { DeleteFile: true };
+        // SAFETY: as above, for the older structure.
+        if unsafe {
+            SetFileInformationByHandle(
+                handle,
+                FileDispositionInfo,
+                (&info as *const FILE_DISPOSITION_INFO).cast(),
+                size_of::<FILE_DISPOSITION_INFO>() as u32,
+            )
+        } != 0
+        {
+            return Ok(true);
+        }
+        let second = std::io::Error::last_os_error();
+        if matches!(second.raw_os_error(), Some(5 | 32))
+            || matches!(first.raw_os_error(), Some(5 | 32))
+        {
+            last = Some(second);
+            continue;
+        }
+        return Err(second);
+    }
+    Err(last.unwrap_or_else(|| std::io::ErrorKind::PermissionDenied.into()))
+}
+
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows_sys::Win32::Graphics::Gdi::{
     BI_RGB, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC, GetDIBits, ReleaseDC,
@@ -558,7 +783,6 @@ unsafe fn above_others(hwnd: HWND) {
 /// Returns true once applied (call again each frame until it is).
 pub fn dialog_frame(title: &str, client: [f32; 2], light: bool, scale: f32, owned: bool) -> bool {
     use windows_sys::Win32::Graphics::Dwm::{DWMWA_USE_IMMERSIVE_DARK_MODE, DwmSetWindowAttribute};
-    use windows_sys::Win32::UI::HiDpi::{AdjustWindowRectExForDpi, GetDpiForWindow};
     let Some(hwnd) = find_own_window(title) else {
         return false;
     };
@@ -586,13 +810,47 @@ pub fn dialog_frame(title: &str, client: [f32; 2], light: bool, scale: f32, owne
         let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32 | WS_EX_DLGMODALFRAME;
         SetWindowLongPtrW(hwnd, GWL_STYLE, style as isize);
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex as isize);
+        size_to_client(hwnd, style, ex, client_px(client, scale));
+    }
+    true
+}
+
+/// A client of `client` points at `scale` pixels per point, in whole device pixels.
+fn client_px(client: [f32; 2], scale: f32) -> [i32; 2] {
+    [
+        (client[0] * scale).round() as i32,
+        (client[1] * scale).round() as i32,
+    ]
+}
+
+/// Size our window `hwnd` so its client is `client` device pixels: the window its styles
+/// (`style`, `ex`) put round that client at the window's own DPI, then its client measured and
+/// the window made larger or smaller by what it came back short or over (#1495). A dialog is as
+/// large as its fixed layout: a client a few pixels short of it showed both scroll bars over a
+/// window whose content was all there, its buttons cut at the bottom. The frame of a window
+/// whose title bar is ours was reckoned, not measured, on Windows 10 in 0.5.2: 2 px a side
+/// counted, the system's sizing frame less 6 px drawn, which is 3 px at 125 %, 5 at 150 %.
+/// Measured, the client is what was asked for, whatever puts the frame round it (a version of
+/// Windows, a scale, a tool that changes the window borders). Not while minimized or maximized,
+/// whose client isn't the window's own size.
+///
+/// # Safety
+/// `hwnd` is a window of this thread.
+unsafe fn size_to_client(hwnd: HWND, style: u32, ex: u32, client: [i32; 2]) {
+    use windows_sys::Win32::UI::HiDpi::{AdjustWindowRectExForDpi, GetDpiForWindow};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetClientRect, GetWindowRect, IsIconic, IsZoomed,
+    };
+    // SAFETY: (the caller's) our own window, on its thread; the rectangles are locals written
+    // during the calls.
+    unsafe {
         let mut rc = RECT {
             left: 0,
             top: 0,
-            right: (client[0] * scale).round() as i32,
-            bottom: (client[1] * scale).round() as i32,
+            right: client[0],
+            bottom: client[1],
         };
-        AdjustWindowRectExForDpi(&mut rc, style, 0, ex, GetDpiForWindow(hwnd));
+        AdjustWindowRectExForDpi(&mut rc, style, 0, ex, GetDpiForWindow(hwnd).max(96));
         SetWindowPos(
             hwnd,
             std::ptr::null_mut(),
@@ -602,8 +860,37 @@ pub fn dialog_frame(title: &str, client: [f32; 2], light: bool, scale: f32, owne
             rc.bottom - rc.top,
             SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE,
         );
+        if IsIconic(hwnd) != 0 || IsZoomed(hwnd) != 0 {
+            return;
+        }
+        let (mut w, mut c): (RECT, RECT) = (zeroed(), zeroed());
+        if GetWindowRect(hwnd, &mut w) == 0 || GetClientRect(hwnd, &mut c) == 0 {
+            return;
+        }
+        let got = [c.right - c.left, c.bottom - c.top];
+        let Some(outer) = outer_for_client([w.right - w.left, w.bottom - w.top], got, client)
+        else {
+            return;
+        };
+        tracing::info!(
+            "window client {got:?} where {client:?} was asked for: the window made {outer:?}"
+        );
+        SetWindowPos(
+            hwnd,
+            std::ptr::null_mut(),
+            0,
+            0,
+            outer[0],
+            outer[1],
+            SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE,
+        );
     }
-    true
+}
+
+/// The size for a window of `outer` pixels whose client came back `got` to have the client
+/// `want`: its frame kept, whatever it measures. None when the client is right already.
+fn outer_for_client(outer: [i32; 2], got: [i32; 2], want: [i32; 2]) -> Option<[i32; 2]> {
+    (got != want).then(|| [outer[0] + want[0] - got[0], outer[1] + want[1] - got[1]])
 }
 
 /// Hit-test results (winuser.h).
@@ -772,7 +1059,6 @@ pub fn thin_frame_on(
     scale: f32,
     hide_item: Option<&str>,
 ) -> Option<isize> {
-    use windows_sys::Win32::UI::HiDpi::{AdjustWindowRectExForDpi, GetDpiForWindow};
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         AppendMenuW, DeleteMenu, GetSystemMenu, IsWindow, MF_BYCOMMAND, MF_STRING,
     };
@@ -809,22 +1095,7 @@ pub fn thin_frame_on(
         // minimized window has for its animation, [`animation_caption`]).
         let style = drawn_style(GetWindowLongPtrW(hwnd, GWL_STYLE) as u32, kind);
         let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
-        let mut rc = RECT {
-            left: 0,
-            top: 0,
-            right: (client[0] * scale).round() as i32,
-            bottom: (client[1] * scale).round() as i32,
-        };
-        AdjustWindowRectExForDpi(&mut rc, style, 0, ex, GetDpiForWindow(hwnd).max(96));
-        SetWindowPos(
-            hwnd,
-            std::ptr::null_mut(),
-            0,
-            0,
-            rc.right - rc.left,
-            rc.bottom - rc.top,
-            SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE,
-        );
+        size_to_client(hwnd, style, ex, client_px(client, scale));
     }
     Some(hwnd as isize)
 }
@@ -1934,6 +2205,111 @@ mod caption_less_tests {
                 assert!(animating(hwnd));
                 animation_caption(hwnd, kind, false);
                 assert_eq!(GetWindowLongPtrW(hwnd, GWL_STYLE) as u32, st);
+                DestroyWindow(hwnd);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod size_to_client_tests {
+    use super::*;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        CreateWindowExW, DefWindowProcW, DestroyWindow, GetClientRect, GetWindowRect,
+        NCCALCSIZE_PARAMS, RegisterClassW, WNDCLASSW, WS_BORDER, WS_POPUP,
+    };
+
+    /// The size a window must be for the client asked for: its frame added back, whatever it is.
+    #[test]
+    fn the_window_grows_or_shrinks_by_what_its_client_is_off() {
+        // #1495: Keys at 125 % on Windows 10 in 0.5.2, a 500 × 240 px client asked for in a
+        // window of 505 × 243 whose frame was 3 px a side, not 2.5: 499 × 240 came back.
+        assert_eq!(
+            outer_for_client([505, 243], [499, 240], [500, 240]),
+            Some([506, 243])
+        );
+        // Over: smaller.
+        assert_eq!(
+            outer_for_client([512, 250], [504, 246], [500, 240]),
+            Some([508, 244])
+        );
+        assert_eq!(outer_for_client([502, 242], [500, 240], [500, 240]), None);
+        assert_eq!(client_px([400.0, 192.0], 1.25), [500, 240]);
+        assert_eq!(client_px([420.0, 268.0], 1.15), [483, 308]);
+    }
+
+    /// A window procedure framing the client as Windows 10 framed a window whose title bar is
+    /// ours in 0.5.2 at 125 %: 3 px left, right and bottom (the 9 px sizing frame less a fixed
+    /// 6), none at the top, where its styles (a plain popup) say there is none.
+    unsafe extern "system" fn three_px_frame(
+        hwnd: HWND,
+        msg: u32,
+        wparam: WPARAM,
+        lparam: LPARAM,
+    ) -> LRESULT {
+        if msg == WM_NCCALCSIZE && wparam != 0 {
+            // SAFETY: with wParam TRUE, lParam points to NCCALCSIZE_PARAMS (Win32 contract).
+            let r = unsafe { &mut (*(lparam as *mut NCCALCSIZE_PARAMS)).rgrc[0] };
+            r.left += 3;
+            r.right -= 3;
+            r.bottom -= 3;
+            return 0;
+        }
+        // SAFETY: the system's own procedure, with the message as it came.
+        unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
+    }
+
+    /// Real (hidden, off-screen) windows: one framed as its styles say has its client at once;
+    /// one framed otherwise (0.5.2's frame on Windows 10 at 125 %) has it too, its window
+    /// made larger by what the client came back short.
+    #[test]
+    fn a_window_s_client_is_what_was_asked_whatever_its_frame() {
+        for (n, (proc_, style, frame)) in [
+            (
+                DefWindowProcW as unsafe extern "system" fn(_, _, _, _) -> _,
+                WS_POPUP | WS_BORDER,
+                [2, 2],
+            ),
+            (three_px_frame, WS_POPUP, [6, 3]),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let class: Vec<u16> = format!("mdm-size-to-client-test-{n}\0")
+                .encode_utf16()
+                .collect();
+            // SAFETY: a class of this test's, and a hidden window of it on this thread,
+            // destroyed below; the strings are NUL-terminated; plain queries to it.
+            unsafe {
+                let mut wc: WNDCLASSW = zeroed();
+                wc.lpfnWndProc = Some(proc_);
+                wc.lpszClassName = class.as_ptr();
+                RegisterClassW(&wc);
+                let hwnd = CreateWindowExW(
+                    0,
+                    class.as_ptr(),
+                    class.as_ptr(),
+                    style,
+                    -20000,
+                    -20000,
+                    300,
+                    200,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null(),
+                );
+                assert!(!hwnd.is_null());
+                size_to_client(hwnd, style, 0, [500, 240]);
+                let (mut w, mut c): (RECT, RECT) = (zeroed(), zeroed());
+                GetWindowRect(hwnd, &mut w);
+                GetClientRect(hwnd, &mut c);
+                assert_eq!([c.right, c.bottom], [500, 240], "{n}");
+                assert_eq!(
+                    [w.right - w.left, w.bottom - w.top],
+                    [500 + frame[0], 240 + frame[1]],
+                    "{n}"
+                );
                 DestroyWindow(hwnd);
             }
         }
@@ -6879,6 +7255,8 @@ pub fn thread_usage(tid: u32) -> Option<crate::crash::Usage> {
         Some(crate::crash::Usage {
             cpu_ms: ms(kernel) + ms(user),
             faults,
+            // Windows counts no page-ins per process here (macOS's, unix.rs).
+            pageins: None,
         })
     }
 }
@@ -8169,12 +8547,15 @@ mod classic_text {
             self.faces
                 .entry(file)
                 .or_insert_with(|| {
-                    let path: Vec<u16> = dir
-                        .join(file)
-                        .as_os_str()
-                        .encode_wide()
-                        .chain([0])
-                        .collect();
+                    let full = dir.join(file);
+                    // A .ttc holds a collection: the face egui draws with too (#1483).
+                    let collection = file.to_ascii_lowercase().ends_with(".ttc");
+                    let index = if collection {
+                        crate::theme::font_face_index(&full)
+                    } else {
+                        0
+                    };
+                    let path: Vec<u16> = full.as_os_str().encode_wide().chain([0]).collect();
                     // SAFETY: `path` is NUL-terminated and outlives the calls; plain COM calls.
                     unsafe {
                         let font = factory
@@ -8182,14 +8563,13 @@ mod classic_text {
                             .ok()?;
                         factory
                             .CreateFontFace(
-                                // A .ttc holds a collection: face 0 is its regular face.
-                                if file.to_ascii_lowercase().ends_with(".ttc") {
+                                if collection {
                                     DWRITE_FONT_FACE_TYPE_TRUETYPE_COLLECTION
                                 } else {
                                     DWRITE_FONT_FACE_TYPE_TRUETYPE
                                 },
                                 &[Some(font)],
-                                0,
+                                index,
                                 DWRITE_FONT_SIMULATIONS_NONE,
                             )
                             .ok()

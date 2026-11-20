@@ -207,7 +207,7 @@
     "message": "Mister Download Manager sedang sibuk dengan video lain"
   },
   "video_queued": {
-    "message": "Ditambah pada giliran"
+    "message": "Ditambah pada baris gilir"
   },
   "video_failed_lookup": {
     "message": "Tidak dapat mencarinya"
@@ -332,10 +332,16 @@
   "video_original": {
     "message": "asal"
   },
+  "video_compatible": {
+    "message": "Paling serasi"
+  },
   "popup_video_hide_fullscreen": {
     "message": "Sembunyikan butang muat turun dalam skrin penuh"
   },
   "popup_video_hide_fullscreen_title": {
     "message": "Semasa halaman dalam skrin penuh, videonya tidak menunjukkan butang Muat turun video"
+  },
+  "popup_remote_forget": {
+    "message": "Lupakan"
   }
 }

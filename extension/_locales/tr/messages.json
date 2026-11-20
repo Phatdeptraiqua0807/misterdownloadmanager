@@ -332,10 +332,16 @@
   "video_original": {
     "message": "orijinal"
   },
+  "video_compatible": {
+    "message": "En uyumlu"
+  },
   "popup_video_hide_fullscreen": {
     "message": "Tam ekrandayken indirme düğmesini gizle"
   },
   "popup_video_hide_fullscreen_title": {
     "message": "Sayfa tam ekrandayken videolarda “Video indir” düğmesi görünmez"
+  },
+  "popup_remote_forget": {
+    "message": "Unut"
   }
 }

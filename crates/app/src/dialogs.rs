@@ -602,8 +602,9 @@ fn dialog_window<T>(
     // Download File Info on Linux (#484): asked for from the browser, it opened behind it.
     // Windows and macOS lift and focus in `keep_theme` once visible.
     let focused = key.with("focus-sent");
-    let takes_focus =
-        modal || (cfg!(all(not(windows), not(target_os = "macos"))) && id == "file-info");
+    let takes_focus = modal
+        || (cfg!(all(not(windows), not(target_os = "macos")))
+            && matches!(id, "file-info" | "video-page" | "torrent" | "grabber"));
     if takes_focus && matches!(out, Outcome::Open) && !crate::offscreen() {
         let shown = ctx.data(|d| d.get_temp::<bool>(key.with("shown")).unwrap_or(false));
         if shown && !ctx.data(|d| d.get_temp::<bool>(focused).unwrap_or(false)) {
@@ -1223,6 +1224,13 @@ pub struct FileInfo {
     pub context: mdm_ipc::Command,
     /// Start or Later held while the folder is looked at, and asked to be created when missing.
     asking: FolderGate<Start>,
+    /// Save As's name was typed by the user (its keys), not given by MDM or the Save dialog
+    /// since (#1447): a file already there under it is asked about as Start or Later is
+    /// pressed (`replacing`), not numbered without a word.
+    typed: bool,
+    /// Start or Later held while the typed name is looked at on the disk, and asked about when a
+    /// file is there (the duplicate question: replace it or number the name).
+    replacing: ReplaceGate<Start>,
     /// The download already running while the dialog shows (Options → Downloads → "Start
     /// downloading immediately while displaying Download File Info dialog").
     pub early: Option<u64>,
@@ -1337,6 +1345,8 @@ impl FileInfo {
             category_open: false,
             context,
             asking: FolderGate::default(),
+            typed: false,
+            replacing: ReplaceGate::default(),
             early: None,
             folders: Vec::new(),
             folders_open: false,
@@ -1436,6 +1446,15 @@ impl FileInfo {
         // Fitted to the new folder too (#28): a deeper one leaves a long name less room.
         self.save_as = self.place.name_in(folder, &name);
         self.edited = true;
+        // MDM's name in that folder now: numbered there when taken.
+        self.typed = false;
+    }
+
+    /// Save As was typed in (#1447): the name is the user's, and a file already there under it
+    /// is asked about as the download is started.
+    fn typed(&mut self) {
+        self.edited = true;
+        self.typed = true;
     }
 
     /// The system Save dialog's answer (`winui::saved_name`): Save As takes its folder and the
@@ -1450,6 +1469,8 @@ impl FileInfo {
         // if it is the same name (the user just chose it as it is).
         self.place.forget();
         self.replace = replace.then(|| self.dest());
+        // The Save dialog asked its own question about a file there.
+        self.typed = false;
     }
 
     /// The file the download replaces as it completes (`Item::replace_file`): the one the Save
@@ -1513,6 +1534,7 @@ impl FileInfo {
             .unwrap_or_default();
         let folder = crate::model::category_folder(c, &self.downloads, &self.dirs);
         self.save_as = self.place.name_in(&folder, &name);
+        self.typed = false;
     }
 
     /// Whether Save As's folder is there, as looked at off the window's thread for the name it
@@ -1521,7 +1543,37 @@ impl FileInfo {
         self.place.folder(&mut self.save_as)
     }
 
-    /// The dialog; Start (or Download Later) waits for a missing folder to be created.
+    /// Start or Later (`out`) with a name typed in Save As that is a file already there (#1447):
+    /// held while the disk is looked at (`exists`, off the window's thread), then the duplicate
+    /// question about it (`show`). Overwrite: the download replaces that file as it completes
+    /// ([`Self::replaces`], as the Save dialog's Replace? does); numbered name: as before, the
+    /// download is numbered as it starts; Cancel: back to the dialog. A name MDM gave, and the
+    /// early download's own place (its file finished behind the dialog), ask nothing.
+    fn ask_replace(
+        &mut self,
+        ctx: &egui::Context,
+        out: Outcome<Start>,
+        exists: impl FnOnce(&Path) -> bool + Send + 'static,
+        show: impl FnOnce(&mut Duplicate, &egui::Context) -> Outcome<usize>,
+    ) -> Outcome<Start> {
+        let dest = self.dest();
+        let typed = self.typed && self.place.own.as_ref() != Some(&dest);
+        match ensure_replace_asked(ctx, &mut self.replacing, out, &dest, typed, exists, show) {
+            Outcome::Done((start, replace)) => {
+                // A typed name's answer is the one that counts (a Replace? answered in the Save
+                // dialog before it was typed over is not).
+                if typed {
+                    self.replace = replace.then_some(dest);
+                }
+                Outcome::Done(start)
+            }
+            Outcome::Open => Outcome::Open,
+            Outcome::Closed => Outcome::Closed,
+        }
+    }
+
+    /// The dialog; Start (or Download Later) waits for a missing folder to be created, and for
+    /// the question about a file already there under a typed name (#1447).
     pub fn show(
         &mut self,
         ctx: &egui::Context,
@@ -1534,6 +1586,7 @@ impl FileInfo {
             .unwrap_or_default();
         let out = self.dialog(ctx, icons);
         let out = ensure_folder(ctx, &mut self.asking, out, &folder);
+        let out = self.ask_replace(ctx, out, |d| d.is_file(), Duplicate::show);
         // #394: more downloads wait their turn behind this one (the browser's selected links):
         // Cancel (the button, Escape, the window's ×) asks whether they are cancelled too.
         if matches!(out, Outcome::Closed) && self.waiting > 0 && !self.cancel_ask {
@@ -1637,7 +1690,9 @@ impl FileInfo {
                 }
                 let category_was_open = self.category_open;
                 // "+": a new category (the app's category window).
-                if winui::small_button(ui, r(o, 276.0, 35.0, 22.0, 21.0), "+").clicked() {
+                let new_category = winui::small_button(ui, r(o, 276.0, 35.0, 22.0, 21.0), "+");
+                winui::name(&new_category, crate::i18n::t("Add category"));
+                if new_category.clicked() {
                     self.new_category = true;
                 }
 
@@ -1656,7 +1711,7 @@ impl FileInfo {
                     self.focused = true;
                 }
                 if save.changed() {
-                    self.edited = true;
+                    self.typed();
                 }
                 // The arrow: the folders saved to before.
                 if winui::combo_arrow(ui, save_rc, "save-as", self.folders_open).clicked()
@@ -1699,7 +1754,9 @@ impl FileInfo {
                     }
                 }
                 // "...": the system's Save dialog, its folder and file name (#1088).
-                if winui::small_button(ui, r(o, 439.0, 64.0, 22.0, 21.0), "...").clicked() {
+                let browse = winui::small_button(ui, r(o, 439.0, 64.0, 22.0, 21.0), "...");
+                winui::name(&browse, crate::i18n::t("Browse"));
+                if browse.clicked() {
                     let dest = self.dest();
                     let dir = dest.parent().map(Path::to_path_buf).unwrap_or_default();
                     let name = dest
@@ -1753,7 +1810,10 @@ impl FileInfo {
                     .trim_end_matches('\\')
                 );
                 let folder_rc = r(o, 104.0, 112.0, 348.0, 23.0);
-                winui::edit(ui, folder_rc, &mut folder, false, false);
+                // Read-only, and not a password box: bool::default() for both flags.
+                let folder_resp =
+                    winui::edit(ui, folder_rc, &mut folder, bool::default(), bool::default());
+                winui::name(&folder_resp, crate::i18n::t("Category folder"));
                 // Greyed as IDM shows it, and still copyable.
                 winui::copyable(ui, folder_rc, "remembered-folder", &folder, false);
 
@@ -3385,6 +3445,82 @@ pub fn drag_downloads_out(
 /// without a handle on the app.
 static TOLD: std::sync::Mutex<Vec<(&'static str, String)>> = std::sync::Mutex::new(Vec::new());
 
+pub struct Confirmation {
+    title: &'static str,
+    text: String,
+    answer: tokio::sync::oneshot::Sender<bool>,
+}
+impl Confirmation {
+    pub fn answer(self, yes: bool) {
+        let _ = self.answer.send(yes);
+    }
+}
+static QUESTIONS: Mutex<std::collections::VecDeque<Confirmation>> =
+    Mutex::new(std::collections::VecDeque::new());
+
+/// Ask from a worker without blocking the UI or treating a closed question as consent.
+pub async fn confirm(title: &'static str, text: String) -> bool {
+    let (answer, reply) = tokio::sync::oneshot::channel();
+    QUESTIONS.lock().unwrap().push_back(Confirmation {
+        title,
+        text,
+        answer,
+    });
+    reply.await.unwrap_or(false)
+}
+pub fn next_confirmation() -> Option<Confirmation> {
+    QUESTIONS.lock().unwrap().pop_front()
+}
+pub fn show_confirmation(ctx: &egui::Context, ask: &Confirmation) -> Outcome<bool> {
+    let id = "torrent-file-permission";
+    let extra = grow_extra(ctx, id);
+    question(
+        ctx,
+        id,
+        ask.title,
+        [540.0, 112.0 + extra],
+        false,
+        winui::BG(),
+        |ui, o| {
+            let lines = winui::paragraph(
+                &ui.painter().clone(),
+                o.x + 16.0,
+                o.y + 20.0,
+                &ask.text,
+                winui::TEXT(),
+                o.x + 524.0,
+                13.0,
+            );
+            grow_to(ui.ctx(), id, lines, 4);
+            let yes = winui::button(
+                ui,
+                r(o, 176.0, 77.0 + extra, 73.0, 21.0),
+                "Yes",
+                ButtonKind::Normal,
+                false,
+                None,
+            )
+            .clicked();
+            let no = winui::button(
+                ui,
+                r(o, 268.0, 77.0 + extra, 73.0, 21.0),
+                "No",
+                ButtonKind::Default,
+                false,
+                None,
+            )
+            .clicked();
+            if yes {
+                Outcome::Done(true)
+            } else if no || winui::escape_pressed(ui) || winui::enter_pressed(ui) {
+                Outcome::Done(false)
+            } else {
+                Outcome::Open
+            }
+        },
+    )
+}
+
 /// Tell the user `text` under the window title `title` (English, marked; the text translated).
 pub fn tell(title: &'static str, text: String) {
     TOLD.lock().unwrap().push((title, text));
@@ -3564,45 +3700,93 @@ pub fn open_download_with(path: &Path, moved_away: bool) {
     });
 }
 
+/// [`Duplicate`]'s answer "Add the duplicate with a numbered file name" (as Options numbers it).
+pub const DUPLICATE_NUMBERED: usize = 1;
+/// [`Duplicate`]'s answer "Add the duplicate and overwrite the existing file".
+pub const DUPLICATE_OVERWRITE: usize = 2;
+
 /// "Duplicate download link": the address is already in the list (Options → Downloads → "If a
 /// duplicate download link is added: Show a dialog and ask what to do"). `Done` with the
 /// choice, numbered as Options lists them (1 numbered name, 2 overwrite, 3 open or resume).
+///
+/// The same question about a file (#1447, [`Self::file`]): the name typed in Download File
+/// Info's Save As is a file already there. Numbered name or overwrite (the file is replaced as
+/// the download completes, never before); Cancel goes back to the dialog.
 pub struct Duplicate {
     name: String,
     choice: usize,
+    /// About a file on the disk (its path in `name`), not an address in the list.
+    file: bool,
 }
 
 impl Duplicate {
     pub fn new(name: String) -> Self {
-        Duplicate { name, choice: 1 }
+        Duplicate {
+            name,
+            choice: DUPLICATE_NUMBERED,
+            file: false,
+        }
+    }
+
+    /// The question about the file at `path`, which the name typed in Save As names.
+    pub fn file(path: &Path) -> Self {
+        Duplicate {
+            name: display_path(path),
+            choice: DUPLICATE_NUMBERED,
+            file: true,
+        }
     }
 
     pub fn show(&mut self, ctx: &egui::Context) -> Outcome<usize> {
+        // A file has two answers (an address's third, open or resume the one in the list, has
+        // no download to open): the window is a row shorter.
+        let (id, title, said, answers) = if self.file {
+            (
+                "duplicate-file",
+                // i18n: window title: the question asked when the name typed in Download File Info's Save As is a file already there
+                crate::i18n::mark("File already exists"),
+                // i18n: the question about a name typed in Save As, above the file's path; the choices are the duplicate question's (numbered name, overwrite)
+                crate::i18n::mark("A file with this name is already there:"),
+                2,
+            )
+        } else {
+            (
+                "duplicate",
+                // i18n: window title: the question asked when an address added is already in the list of downloads
+                crate::i18n::mark("Duplicate download link"),
+                crate::i18n::mark("This address is already in the list of downloads:"),
+                3,
+            )
+        };
+        let short = 20.0 * (3 - answers) as f32;
         question(
             ctx,
-            "duplicate",
-            "Duplicate download link",
-            [460.0, 156.0],
+            id,
+            title,
+            [460.0, 156.0 - short],
             false,
             winui::LIGHT_BG(),
             |ui, o| {
                 let p = ui.painter().clone();
                 let ink = winui::LIGHT_TEXT();
-                winui::text(
-                    &p,
-                    o.x + 11.0,
-                    o.y + 21.0,
-                    crate::i18n::t("This address is already in the list of downloads:"),
-                    ink,
-                );
-                let name = crate::i18n::isolate(&self.name);
+                winui::text(&p, o.x + 11.0, o.y + 21.0, crate::i18n::t(said), ink);
+                let name = if self.file {
+                    crate::i18n::ltr(&self.name)
+                } else {
+                    crate::i18n::isolate(&self.name)
+                };
                 let (rect, cut) =
                     winui::text_fit(&p, o.x + 11.0, o.y + 39.0, &name, ink, o.x + 449.0);
                 if cut {
                     winui::full_on_hover(ui, rect, "duplicate-name", &self.name);
                 }
                 let mut group = Vec::new();
-                for (k, label) in crate::options::DUPLICATE.iter().enumerate().skip(1) {
+                for (k, label) in crate::options::DUPLICATE
+                    .iter()
+                    .enumerate()
+                    .skip(1)
+                    .take(answers)
+                {
                     let y = 52.0 + 20.0 * (k - 1) as f32;
                     let resp =
                         winui::radio_light(ui, o + vec2(14.0, y), self.choice == k, label, true);
@@ -3616,7 +3800,7 @@ impl Duplicate {
                 }
                 let ok = winui::button_light(
                     ui,
-                    r(o, 295.0, 124.0, 73.0, 21.0),
+                    r(o, 295.0, 124.0 - short, 73.0, 21.0),
                     "OK",
                     ButtonKind::Default,
                     false,
@@ -3624,7 +3808,7 @@ impl Duplicate {
                 .clicked();
                 let cancel = winui::button_light(
                     ui,
-                    r(o, 376.0, 124.0, 73.0, 21.0),
+                    r(o, 376.0, 124.0 - short, 73.0, 21.0),
                     "Cancel",
                     ButtonKind::Normal,
                     false,
@@ -4160,25 +4344,32 @@ impl<T, A, Q> Default for Gate<T, A, Q> {
 }
 
 impl<T, A: Clone + PartialEq + Send + 'static, Q> Gate<T, A, Q> {
-    /// The dialog's "start", let go: the gate starts over.
-    fn release(&mut self) -> Outcome<T> {
+    /// Nothing is held: no "start" is waiting for a look or a question.
+    fn idle(&self) -> bool {
+        self.held.is_none()
+    }
+
+    /// The dialog's "start", let go with the question's answer (None: nothing was asked): the
+    /// gate starts over.
+    fn release<R>(&mut self, answer: Option<R>) -> Outcome<(T, Option<R>)> {
         let held = self.held.take();
         *self = Gate::default();
-        held.map_or(Outcome::Open, Outcome::Done)
+        held.map_or(Outcome::Open, |v| Outcome::Done((v, answer)))
     }
 
     /// `out` held until `at` has been looked at with `look` (made only when asked; it runs on
     /// a thread of its own) and the question `ask` makes of the answer (None: nothing to ask)
-    /// was answered Yes by `show`. No goes back to the dialog.
-    fn pass<L: FnOnce(&PathBuf) -> A + Send + 'static>(
+    /// was answered by `show` (its `Done`, given back with the "start"). No (the question's
+    /// `Closed`) goes back to the dialog.
+    fn pass<R, L: FnOnce(&PathBuf) -> A + Send + 'static>(
         &mut self,
         ctx: &egui::Context,
         out: Outcome<T>,
         at: &Path,
         look: impl FnOnce() -> L,
         ask: impl FnOnce(A) -> Option<Q>,
-        show: impl FnOnce(&mut Q, &egui::Context) -> Outcome<()>,
-    ) -> Outcome<T> {
+        show: impl FnOnce(&mut Q, &egui::Context) -> Outcome<R>,
+    ) -> Outcome<(T, Option<R>)> {
         match out {
             Outcome::Closed => {
                 *self = Gate::default();
@@ -4207,7 +4398,7 @@ impl<T, A: Clone + PartialEq + Send + 'static, Q> Gate<T, A, Q> {
             let found = self.look.as_ref().and_then(|(p, a)| a.answer(p));
             match found.map(ask) {
                 None => return Outcome::Open,
-                Some(None) => return self.release(),
+                Some(None) => return self.release(None),
                 Some(question) => self.question = question,
             }
         }
@@ -4220,7 +4411,18 @@ impl<T, A: Clone + PartialEq + Send + 'static, Q> Gate<T, A, Q> {
                 *self = Gate::default();
                 Outcome::Open
             }
-            Outcome::Done(()) => self.release(),
+            Outcome::Done(answer) => self.release(Some(answer)),
+        }
+    }
+}
+
+impl<T> Outcome<T> {
+    /// The dialog's answer made into another (`Open` and `Closed` stay as they are).
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Outcome<U> {
+        match self {
+            Outcome::Open => Outcome::Open,
+            Outcome::Done(v) => Outcome::Done(f(v)),
+            Outcome::Closed => Outcome::Closed,
         }
     }
 }
@@ -4247,6 +4449,7 @@ pub fn ensure_files_free<T, F: FnOnce() -> Vec<PathBuf> + Send + 'static>(
         |found| (!found.is_empty()).then(|| ExistingFiles::new(&found)),
         ExistingFiles::show,
     )
+    .map(|(v, _)| v)
 }
 
 /// Holds a dialog's "start" (`out`) until `folder` exists: looked at off the window's thread,
@@ -4277,6 +4480,50 @@ fn ensure_folder_with<T>(
         |there| (!there).then(|| CreateFolder::new(folder.to_owned())),
         CreateFolder::show,
     )
+    .map(|(v, _)| v)
+}
+
+/// [`ensure_replace_asked`]'s: whether a file is at the typed name; the duplicate question,
+/// about that file.
+pub type ReplaceGate<T> = Gate<T, bool, Duplicate>;
+
+/// Holds a dialog's "start" (`out`) while the file name the user typed (`dest`; `typed`) names
+/// a file that is already there (#1447): looked at off the window's thread (with `exists`, once
+/// the old files being deleted in its folder for a new start are gone), then asked with the
+/// duplicate question about that file ([`Duplicate::file`], shown by `show`). Its overwrite
+/// answer gives `true` (the download replaces the file as it completes, `Item::replace_file`),
+/// its numbered name `false` (numbered as the download starts, as before); Cancel goes back to
+/// the dialog. A name MDM gave (not `typed`) passes as it is, numbered as it starts if taken.
+/// `gate` lives in the dialog, across frames.
+pub fn ensure_replace_asked<T>(
+    ctx: &egui::Context,
+    gate: &mut ReplaceGate<T>,
+    out: Outcome<T>,
+    dest: &Path,
+    typed: bool,
+    exists: impl FnOnce(&Path) -> bool + Send + 'static,
+    show: impl FnOnce(&mut Duplicate, &egui::Context) -> Outcome<usize>,
+) -> Outcome<(T, bool)> {
+    if !typed && gate.idle() {
+        // Nothing to ask about a name MDM gave: no look at the disk either.
+        return out.map(|v| (v, false));
+    }
+    gate.pass(
+        ctx,
+        out,
+        dest,
+        || {
+            move |d: &PathBuf| {
+                if let Some(dir) = d.parent().filter(|p| !p.as_os_str().is_empty()) {
+                    mdm_engine::naming::wait_cleared(dir);
+                }
+                exists(d)
+            }
+        },
+        |there| (there && typed).then(|| Duplicate::file(dest)),
+        show,
+    )
+    .map(|(v, answer)| (v, answer == Some(DUPLICATE_OVERWRITE)))
 }
 
 #[cfg(test)]
@@ -4976,6 +5223,159 @@ mod tests {
         assert_eq!(there, Some(true));
         assert_eq!(fi.dest(), taken);
         assert_eq!(fi.replaces(), Some(taken));
+    }
+
+    /// Frames of Download File Info's replace gate after Start (`first`) until it lets the
+    /// start go, the question answered by `answer` (None: never asked). Whether it was asked,
+    /// what about, and how the dialog ended (None: still open after 5 s).
+    fn start_with_answer(
+        fi: &mut FileInfo,
+        first: Start,
+        answer: Outcome<usize>,
+    ) -> (Option<String>, Option<Outcome<Start>>) {
+        let ctx = egui::Context::default();
+        let mut asked = None;
+        let mut answer = Some(answer);
+        let mut out = Outcome::Done(first);
+        let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            let got = fi.ask_replace(
+                &ctx,
+                std::mem::replace(&mut out, Outcome::Open),
+                |d| d.is_file(),
+                |q, _| {
+                    assert!(q.file, "the question about a file");
+                    asked = Some(q.name.clone());
+                    // Once answered, the gate starts over: a second question is a second Start.
+                    answer.take().expect("asked once")
+                },
+            );
+            match got {
+                Outcome::Open if asked.is_some() && answer.is_none() => {
+                    // Cancel: back to the dialog, nothing held.
+                    return (asked, Some(Outcome::Open));
+                }
+                Outcome::Open if std::time::Instant::now() < until => {
+                    std::thread::sleep(std::time::Duration::from_millis(2));
+                }
+                Outcome::Open => return (asked, None),
+                got => return (asked, Some(got)),
+            }
+        }
+    }
+
+    /// #1447: a name typed in Save As that is a file already there is asked about as Start (or
+    /// Later) is pressed: overwrite makes the download replace that file as it completes
+    /// (`Item::replace_file`, as the Save dialog's Replace? does); the numbered name replaces
+    /// nothing (the download is numbered as it starts, as before); Cancel goes back to the
+    /// dialog, and the next Start asks again.
+    #[test]
+    fn a_typed_name_of_a_file_already_there_is_asked_about() {
+        let d = tempfile::tempdir().unwrap();
+        let taken = d.path().join("pssh-ui-x64.exe");
+        std::fs::write(&taken, b"the old file").unwrap();
+        let (mut fi, _rt) = file_info(d.path(), "pssh-ui-x64.exe");
+        fi.save_as = display_path(&taken);
+        fi.typed();
+
+        let (asked, out) =
+            start_with_answer(&mut fi, Start::Now, Outcome::Done(DUPLICATE_OVERWRITE));
+        assert_eq!(asked.as_deref(), Some(display_path(&taken).as_str()));
+        assert!(matches!(out, Some(Outcome::Done(Start::Now))));
+        assert_eq!(
+            fi.replaces(),
+            Some(taken.clone()),
+            "replaced as it completes"
+        );
+        assert_eq!(
+            std::fs::read(&taken).unwrap(),
+            b"the old file",
+            "never before"
+        );
+
+        let (asked, out) =
+            start_with_answer(&mut fi, Start::Later, Outcome::Done(DUPLICATE_NUMBERED));
+        assert!(asked.is_some());
+        assert!(matches!(out, Some(Outcome::Done(Start::Later))));
+        assert_eq!(fi.replaces(), None, "numbered as it starts");
+
+        let (asked, out) = start_with_answer(&mut fi, Start::Now, Outcome::Closed);
+        assert!(asked.is_some());
+        assert!(
+            matches!(out, Some(Outcome::Open)),
+            "Cancel: back to the dialog"
+        );
+        assert_eq!(fi.replaces(), None);
+        let (asked, out) =
+            start_with_answer(&mut fi, Start::Now, Outcome::Done(DUPLICATE_OVERWRITE));
+        assert!(asked.is_some(), "asked again");
+        assert!(matches!(out, Some(Outcome::Done(Start::Now))));
+        assert_eq!(fi.replaces(), Some(taken));
+    }
+
+    /// #1447: what asks nothing. A typed name no file has; a name MDM gave, even one a file has
+    /// by now (numbered as it starts, as before, and let go in the same frame: no look at the
+    /// disk); the name of the download started early behind the dialog (#597: its own file).
+    #[test]
+    fn a_name_mdm_gave_or_a_free_one_is_not_asked_about() {
+        let d = tempfile::tempdir().unwrap();
+        let taken = d.path().join("taken.7z");
+        std::fs::write(&taken, b"the old file").unwrap();
+        let (mut fi, _rt) = file_info(d.path(), "taken.7z");
+
+        fi.save_as = display_path(&d.path().join("free.7z"));
+        fi.typed();
+        let (asked, out) = start_with_answer(&mut fi, Start::Now, Outcome::Closed);
+        assert_eq!(asked, None);
+        assert!(matches!(out, Some(Outcome::Done(Start::Now))));
+        assert_eq!(fi.replaces(), None);
+
+        // MDM's name (a category or folder chosen gives it again), the file there meanwhile.
+        fi.set_category(Category::General);
+        fi.save_as = display_path(&taken);
+        let ctx = egui::Context::default();
+        let out = fi.ask_replace(
+            &ctx,
+            Outcome::Done(Start::Now),
+            |_| unreachable!("no look at the disk"),
+            |_, _| unreachable!("nothing asked"),
+        );
+        assert!(matches!(out, Outcome::Done(Start::Now)), "at once");
+        assert_eq!(fi.replaces(), None);
+
+        // The early download's own place.
+        fi.typed();
+        fi.set_early_place(Some(taken.clone()));
+        let out = fi.ask_replace(
+            &ctx,
+            Outcome::Done(Start::Now),
+            |_| unreachable!("no look at the disk"),
+            |_, _| unreachable!("nothing asked"),
+        );
+        assert!(matches!(out, Outcome::Done(Start::Now)));
+    }
+
+    /// #1447: a name chosen in the Save dialog was asked about there (Windows' Replace?): not
+    /// again. Typed over afterwards, it is the typed name's question that counts.
+    #[test]
+    fn a_name_from_the_save_dialog_is_not_asked_again() {
+        let d = tempfile::tempdir().unwrap();
+        let taken = d.path().join("taken.7z");
+        std::fs::write(&taken, b"the old file").unwrap();
+        let (mut fi, _rt) = file_info(d.path(), "taken.7z");
+        fi.typed();
+        fi.set_saved(&taken, true);
+        let (asked, out) = start_with_answer(&mut fi, Start::Now, Outcome::Closed);
+        assert_eq!(asked, None);
+        assert!(matches!(out, Some(Outcome::Done(Start::Now))));
+        assert_eq!(fi.replaces(), Some(taken.clone()));
+
+        fi.typed();
+        let (asked, out) =
+            start_with_answer(&mut fi, Start::Now, Outcome::Done(DUPLICATE_NUMBERED));
+        assert!(asked.is_some());
+        assert!(matches!(out, Some(Outcome::Done(Start::Now))));
+        assert_eq!(fi.replaces(), None);
     }
 
     /// #743: Start in a dialog whose folder is on a disk slow to answer holds up no frame: the

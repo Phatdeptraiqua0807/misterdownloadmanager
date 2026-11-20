@@ -293,7 +293,8 @@ impl OptionsDialog {
 
     /// With General → Test browser integration's window over it, Accounts → Add's, or
     /// Downloads → Customize "Download progress" dialog's (`/show options:test`,
-    /// `options:account`, `options:progress`: screenshots, #192, #1041).
+    /// `options:account`, `options:progress`: screenshots, #192, #1041), or General → Keys...
+    /// (`options:keys`, #1495).
     pub fn with_window(mut self, name: &str) -> Self {
         match name {
             "test" => {
@@ -303,6 +304,7 @@ impl OptionsDialog {
             }
             "account" => self.sub = Some(Sub::Account(AccountEdit::default())),
             "progress" => self.sub = Some(Sub::Progress(self.s.show_progress)),
+            "keys" => self.sub = Some(Sub::Keys(self.s.capture_opened)),
             _ => {}
         }
         self
@@ -775,7 +777,7 @@ impl OptionsDialog {
         // Adding browsers and the browser menu editor are the extension's settings (M8): shown as
         // IDM has them, not yet available.
         let off = |ui: &mut Ui, rc: Rect, label: &str| {
-            winui::button_light(ui, rc, label, ButtonKind::Disabled, false);
+            winui::button_light(ui, rc, label, ButtonKind::Disabled, false)
         };
         // Both as wide as their labels in this language (#192), within the group box.
         let [test_at, add_at] = winui::button_row(
@@ -845,7 +847,8 @@ impl OptionsDialog {
             winui::full_on_hover(ui, rect, ("general-right", 419), label);
         }
         // i18n: verb: edit the item
-        off(ui, r(o, 289.0, 406.0, 103.0, 21.0), "Edit...");
+        let menu_edit = off(ui, r(o, 289.0, 406.0, 103.0, 21.0), "Edit...");
+        winui::name(&menu_edit, label);
         // The download button over videos in the browsers (our own panel, Sub::Panels).
         let label = crate::i18n::t("Customize MDM Download panels in browsers");
         let panels_at = fit_right("Edit...");
@@ -859,16 +862,16 @@ impl OptionsDialog {
         if cut {
             winui::full_on_hover(ui, rect, ("general-right", 452), label);
         }
-        if winui::button_light(
+        let panels_edit = winui::button_light(
             ui,
             r(o, panels_at.0, 438.0, panels_at.1, 21.0),
             // i18n: verb: edit the item
             "Edit...",
             ButtonKind::Normal,
             false,
-        )
-        .clicked()
-        {
+        );
+        winui::name(&panels_edit, label);
+        if panels_edit.clicked() {
             self.sub = Some(Sub::Panels(
                 self.s.video_panel,
                 self.s.video_panel_compact,
@@ -2397,6 +2400,18 @@ impl OptionsDialog {
         };
         // Two lines at most: a longer language wraps rather than being cut.
         winui::paragraph(&p, o.x + 30.0, o.y + 380.0, note, ink, o.x + 400.0, 13.0);
+        winui::checkbox_light(
+            ui,
+            o + vec2(22.0, 414.0),
+            &mut self.s.ytdlp_config,
+            // i18n: Options → Sites Logins: checkbox under Cookies for video sites: yt-dlp also reads the person's own yt-dlp config file
+            "Use my yt-dlp config file",
+            true,
+        )
+        .on_hover_text(crate::i18n::t(
+            // i18n: Options → Sites Logins → Use my yt-dlp config file: its tooltip
+            "yt-dlp also reads its own config files (on Windows %APPDATA%\\yt-dlp\\config.txt, on Linux and macOS ~/.config/yt-dlp/config). Most of what MDM chooses, the folder, the name and the quality, still wins, but options there that skip or filter videos apply too.",
+        ));
     }
 
     /// Archives (ours, #37): extracting archives when their download completes, what becomes
@@ -5069,6 +5084,7 @@ fn report(
         head + 23.0,
         winui::LIST_HEADER(),
     );
+    winui::header_shade(&p, left + 1.0, rc.right() - 2.0, head + 23.0, false);
     let mut x0 = left;
     for (i, (title, right)) in cols.iter().enumerate() {
         let title = crate::i18n::t(title);
@@ -5078,7 +5094,7 @@ fn report(
         if cut {
             winui::full_on_hover(ui, rect, (id, "head", i), title);
         }
-        fill(&p, right, head + 1.0, right, head + 23.0, divider);
+        winui::header_divider(&p, right, head + 1.0, head + 23.0, divider);
         x0 = right;
     }
     // The rows: the shared row list under the header (its frame on the list's).

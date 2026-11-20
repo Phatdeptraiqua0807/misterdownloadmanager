@@ -255,6 +255,10 @@
 #. {name} = a file name (keep the braces as they are)
 #, machine
 	A file of this torrent can't be saved safely: {name}	ਇਸ ਟੋਰੈਂਟ ਦੀ ਇੱਕ ਫ਼ਾਈਲ ਨੂੰ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਸੇਵ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ: {name}
+#. text in a dialog box
+#. the question about a name typed in Save As, above the file's path; the choices are the duplicate question's (numbered name, overwrite)
+#, machine
+	A file with this name is already there:	ਇਸ ਨਾਮ ਵਾਲੀ ਫ਼ਾਈਲ ਪਹਿਲਾਂ ਹੀ ਮੌਜੂਦ ਹੈ:
 #. message or event log entry in the main window
 #. Link grabber added a magnet link whose torrent could not be found; {error} says why
 #. {error} = an error message (keep the braces as they are)
@@ -1270,7 +1274,7 @@
 #. text in the Options window
 #, machine
 	Default max. conn. number	ਡਿਫੌਲਟ ਅਧਿਕਤਮ ਕਨੈਕਸ਼ਨ ਨੰਬਰ
-#. text in the main window's messages (deleting downloads' files); button in a dialog box; button in the Options window; button in rssdlg.rs
+#. text in the main window's messages (deleting downloads' files); button in a dialog box; button in the Options window; button in rssdlg.rs; text in torrent downloads
 #. button: deletes the category
 #. verb: delete the item
 #, machine
@@ -1511,6 +1515,11 @@
 #, machine
 	Downloading again from the start	ਸ਼ੁਰੂ ਤੋਂ ਦੁਬਾਰਾ ਡਾਊਨਲੋਡ ਹੋ ਰਿਹਾ ਹੈ
 #. text in the Download video window
+#. in Download video: MDM downloads Deno (a program's name) and checks it against its published checksum
+#. the trailing ... means it is still going on: keep it
+#, machine
+	Downloading and verifying Deno (about 40 MB)...	Deno ਡਾਊਨਲੋਡ ਅਤੇ ਜਾਂਚ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ (ਲਗਭਗ 40 MB)...
+#. text in the Download video window
 #. the trailing ... means it is still going on: keep it
 #, machine
 	Downloading and verifying ffmpeg (about 80 MB)...	ffmpeg (ਲਗਭਗ 80 MB) ਡਾਊਨਲੋਡ ਅਤੇ ਤਸਦੀਕ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...
@@ -1589,14 +1598,15 @@
 #. in Import, where the addresses came from: dragged onto the window
 #, machine
 	Dropped links	ਛੱਡੇ ਗਏ ਲਿੰਕ
-#. window title in a dialog box
+#. text in a dialog box
+#. window title: the question asked when an address added is already in the list of downloads
 #, machine
 	Duplicate download link	ਡੁਪਲੀਕੇਟ ਡਾਊਨਲੋਡ ਲਿੰਕ
 #. text in the Options window
 #. Options → Network adapter: what "Any" means
 #, machine
 	Each connection takes the system's route.	ਹਰੇਕ ਕਨੈਕਸ਼ਨ ਸਿਸਟਮ ਦਾ ਰੂਟ ਵਰਤਦਾ ਹੈ।
-#. text in the Link grabber window
+#. text in the Batch download window; text in the Link grabber window
 #. Link grabber, in the empty "Save to" box: each file goes to its category's folder (Options → Save to)
 #, machine
 	Each file's category folder	ਹਰੇਕ ਫ਼ਾਈਲ ਦਾ ਸ਼੍ਰੇਣੀ ਫੋਲਡਰ
@@ -1830,6 +1840,10 @@
 #. noun: a file of no known type
 #, machine
 	File	ਫਾਈਲ
+#. text in a dialog box
+#. window title: the question asked when the name typed in Download File Info's Save As is a file already there
+#, machine
+	File already exists	ਫ਼ਾਈਲ ਪਹਿਲਾਂ ਹੀ ਮੌਜੂਦ ਹੈ
 #. text in the Options window
 #. tooltip of "Mark downloaded files as coming from the internet" on Linux
 #, machine
@@ -2324,6 +2338,10 @@
 #, machine
 	Install 7-Zip (free), then right-click the download and choose Extract.	7-Zip (ਮੁਫ਼ਤ) ਇੰਸਟਾਲ ਕਰੋ, ਫਿਰ ਡਾਊਨਲੋਡ 'ਤੇ ਸੱਜਾ-ਕਲਿੱਕ ਕਰੋ ਅਤੇ ਐਕਸਟਰੈਕਟ ਚੁਣੋ।
 #. text in the Download video window
+#. button in Download video: download and install Deno, the JavaScript runtime YouTube needs (Deno is a program's name)
+#, machine
+	Install Deno	Deno ਇੰਸਟਾਲ ਕਰੋ
+#. text in the Download video window
 #. button: download and install the ffmpeg program
 #, machine
 	Install ffmpeg	ffmpeg ਸਥਾਪਤ ਕਰੋ
@@ -2462,6 +2480,10 @@
 #. a country's name (where a download's server is)
 #, machine
 	Japan	ਜਾਪਾਨ
+#. text in helpers.rs
+#. Video helpers: the row of the JavaScript runtime yt-dlp needs for YouTube (Deno is a program's name)
+#, machine
+	JavaScript runtime (Deno)	JavaScript ਰਨਟਾਈਮ (Deno)
 #. text in countries.rs
 #. a country's name (where a download's server is)
 #, machine
@@ -2579,6 +2601,10 @@
 #. Options → Remote check box (off by default)
 #, machine
 	Let phones and computers on the local network control MDM	ਸਥਾਨਕ ਨੈੱਟਵਰਕ 'ਤੇ ਫ਼ੋਨਾਂ ਅਤੇ ਕੰਪਿਊਟਰਾਂ ਨੂੰ MDM ਨੂੰ ਕੰਟਰੋਲ ਕਰਨ ਦਿਓ
+#. text in helpers.rs
+#. Video helpers: what the JavaScript runtime is for, after its name (yt-dlp is a program's name)
+#, machine
+	lets yt-dlp list all of YouTube's qualities	yt-dlp ਨੂੰ YouTube ਦੀਆਂ ਸਾਰੀਆਂ ਗੁਣਵੱਤਾਵਾਂ ਦੀ ਸੂਚੀ ਬਣਾਉਣ ਦਿੰਦਾ ਹੈ
 #. option (radio button) in the Batch download window
 #. the * in the address runs through letters
 #, machine
@@ -2842,6 +2868,10 @@
 #, machine
 	MDM does not answer. Trying again...	MDM ਜਵਾਬ ਨਹੀਂ ਦੇ ਰਿਹਾ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰ ਰਿਹਾ ਹੈ...
 #. text in helpers.rs
+#. Video helpers: MDM can't download Deno on this system (32-bit Windows, an unusual processor); Deno and Node.js are program names
+#, machine
+	MDM has no copy for this system: install Deno or Node.js	MDM ਕੋਲ ਇਸ ਸਿਸਟਮ ਲਈ ਕੋਈ ਕਾਪੀ ਨਹੀਂ ਹੈ: Deno ਜਾਂ Node.js ਇੰਸਟਾਲ ਕਰੋ
+#. text in helpers.rs
 #. Video helpers: MDM can't download this helper on this Windows (ffmpeg on 32-bit Windows); "Use another program" is the button below
 #, machine
 	MDM has no copy for this system: install it, or use another program	MDM ਕੋਲ ਇਸ ਸਿਸਟਮ ਲਈ ਕੋਈ ਕਾਪੀ ਨਹੀਂ ਹੈ: ਇਸਨੂੰ ਸਥਾਪਤ ਕਰੋ, ਜਾਂ ਕੋਈ ਹੋਰ ਪ੍ਰੋਗਰਾਮ ਵਰਤੋ
@@ -2984,6 +3014,14 @@
 #. a country's name (where a download's server is)
 #, machine
 	Morocco	ਮੋਰੋਕੋ
+#. text in playlistdlg.rs
+#. a quality in Download video for a whole playlist: each video's best H.264 video with AAC sound, an MP4 that every video editor, TV and phone plays; keep "(H.264 + AAC)" as it is
+#, machine
+	Most compatible (H.264 + AAC)	ਸਭ ਤੋਂ ਅਨੁਕੂਲ (H.264 + AAC)
+#. text in the Download video window
+#. a choice in the Download video window: the best H.264 video with AAC sound, an MP4 that every video editor, TV and phone plays; keep "(H.264 + AAC)" as it is; {height} is the resolution (1080p)
+#, machine
+	Most compatible (H.264 + AAC) · {height}	ਸਭ ਤੋਂ ਅਨੁਕੂਲ (H.264 + AAC) · {height}
 #. button in a download's Properties window
 #. verb: move the file to another folder
 #, machine
@@ -4018,7 +4056,8 @@
 #. text in a download's progress window; text in a download's Properties window
 #, machine
 	Save To:	ਇਸ ਵਿੱਚ ਸੁਰੱਖਿਅਤ ਕਰੋ:
-#. text in the Link grabber window; text in rssdlg.rs
+#. text in the Batch download window; text in the Link grabber window; text in rssdlg.rs
+#. Batch download: the folder every file goes to (a label before its box)
 #. Link grabber: the folder the package's files go to (a label before its box)
 #. RSS feeds window, Download rules: the folder the rule's torrents go to
 #, machine
@@ -4986,6 +5025,11 @@
 #. text in errors.rs
 #, machine
 	the server sent an unexpected part of the file ({detail})	ਸਰਵਰ ਨੇ ਫਾਈਲ ਦਾ ਇੱਕ ਅਣਕਿਆਸਿਆ ਹਿੱਸਾ ਭੇਜਿਆ ({detail})
+#. text in errors.rs
+#. why a download failed (#1460): the browser's own download of the link was a file of {size} (such as 117.65 MB), but when MDM asked the server for it, it sent only {sent} (such as 4.65 KB): an error or a notice, not the file. Some links work only once, or only in the browser. Alt+click: the link clicked with the Alt key held, which leaves the download to the browser
+#. {size} = a file size such as "4.2 MB" (keep the braces as they are)
+#, machine
+	the server sent only {sent} where the browser's file is {size} (a link that works once, or only in the browser): Alt+click the link to let the browser download it	ਸਰਵਰ ਨੇ ਸਿਰਫ਼ {sent} ਭੇਜਿਆ ਜਿੱਥੇ ਬ੍ਰਾਊਜ਼ਰ ਦੀ ਫ਼ਾਈਲ {size} ਹੈ (ਇੱਕ ਲਿੰਕ ਜੋ ਇੱਕ ਵਾਰ ਕੰਮ ਕਰਦਾ ਹੈ, ਜਾਂ ਸਿਰਫ਼ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ): ਬ੍ਰਾਊਜ਼ਰ ਨੂੰ ਡਾਊਨਲੋਡ ਕਰਨ ਦੇਣ ਲਈ ਲਿੰਕ 'ਤੇ Alt+ਕਲਿੱਕ ਕਰੋ
 #. text in debrid.rs
 #. Options → Accounts: the service doesn't say whether the account is premium (Mega-Debrid, signed in with an API key); a free account's links are refused when downloading
 #, machine
@@ -5908,6 +5952,10 @@
 #, machine
 	Your own program: {path} ({version})	ਤੁਹਾਡਾ ਆਪਣਾ ਪ੍ਰੋਗਰਾਮ: {path} ({version})
 #. text in helpers.rs
+#. Video helpers: {path} = the computer's own JavaScript runtime (node.exe, deno.exe), used as it is: MDM needn't download one
+#, machine
+	Your system's, nothing to download: {path}	ਤੁਹਾਡੇ ਸਿਸਟਮ ਦਾ, ਡਾਊਨਲੋਡ ਕਰਨ ਲਈ ਕੁਝ ਨਹੀਂ: {path}
+#. text in helpers.rs
 #. Video helpers: {path} = the system's yt-dlp, ffmpeg or gallery-dl
 #, machine
 	Your system's: {path}	ਤੁਹਾਡੇ ਸਿਸਟਮ ਦਾ: {path}
@@ -6035,8 +6083,9 @@
 #. a kind of file, by its extension: {ext} = "ZIP", "PDF"…
 #, machine
 	{ext} File	{ext} ਫ਼ਾਈਲ
-#. text in the main window's messages (deleting downloads' files)
+#. text in the main window's messages (deleting downloads' files); text in torrent downloads
 #. a message: a deleted download's file stayed on the disk; {file} = its name
+#. error dialog when a torrent's files could not be deleted; {file} is the download's name, {error} why
 #. {error} = an error message (keep the braces as they are)
 #, machine
 	{file} could not be deleted from the disk: {error}	{file} ਨੂੰ ਡਿਸਕ ਤੋਂ ਮਿਟਾਇਆ ਨਹੀਂ ਜਾ ਸਕਿਆ: {error}
@@ -6585,6 +6634,10 @@ extension	Mister Download Manager then downloads through the same proxy as this 
 #. the small arrow next to the Download video button that opens its menu (read aloud by screen readers)
 #, machine
 extension	More options	ਹੋਰ ਵਿਕਲਪ
+#. text in the browser extension
+#. in the list under the download button over a video, after a quality's height (1080p): the H.264 video with AAC sound in an MP4, the file that plays in every video editor, TV and phone; short, about 20 characters at most
+#, machine
+extension	Most compatible	ਸਭ ਤੋਂ ਅਨੁਕੂਲ
 #. text in the browser extension
 #. menu command of the download button over a video: never show the button on this web site again
 #. {site} = a web site's name such as "example.com" (keep the braces as they are)

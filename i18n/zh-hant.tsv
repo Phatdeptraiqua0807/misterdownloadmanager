@@ -255,6 +255,10 @@
 #. {name} = a file name (keep the braces as they are)
 #, machine
 	A file of this torrent can't be saved safely: {name}	此 torrent 中的檔案無法安全儲存：{name}
+#. text in a dialog box
+#. the question about a name typed in Save As, above the file's path; the choices are the duplicate question's (numbered name, overwrite)
+#, machine
+	A file with this name is already there:	此名稱的檔案已存在：
 #. message or event log entry in the main window
 #. Link grabber added a magnet link whose torrent could not be found; {error} says why
 #. {error} = an error message (keep the braces as they are)
@@ -1270,7 +1274,7 @@
 #. text in the Options window
 #, machine
 	Default max. conn. number	預設最大連線數
-#. text in the main window's messages (deleting downloads' files); button in a dialog box; button in the Options window; button in rssdlg.rs
+#. text in the main window's messages (deleting downloads' files); button in a dialog box; button in the Options window; button in rssdlg.rs; text in torrent downloads
 #. button: deletes the category
 #. verb: delete the item
 #, machine
@@ -1511,6 +1515,11 @@
 #, machine
 	Downloading again from the start	正在從頭開始再次下載
 #. text in the Download video window
+#. in Download video: MDM downloads Deno (a program's name) and checks it against its published checksum
+#. the trailing ... means it is still going on: keep it
+#, machine
+	Downloading and verifying Deno (about 40 MB)...	正在下載並驗證 Deno (約 40 MB)...
+#. text in the Download video window
 #. the trailing ... means it is still going on: keep it
 #, machine
 	Downloading and verifying ffmpeg (about 80 MB)...	正在下載並驗證 ffmpeg (約 80 MB)...
@@ -1589,14 +1598,15 @@
 #. in Import, where the addresses came from: dragged onto the window
 #, machine
 	Dropped links	已拖曳的連結
-#. window title in a dialog box
+#. text in a dialog box
+#. window title: the question asked when an address added is already in the list of downloads
 #, machine
 	Duplicate download link	重複的下載連結
 #. text in the Options window
 #. Options → Network adapter: what "Any" means
 #, machine
 	Each connection takes the system's route.	每個連線都採用系統路由。
-#. text in the Link grabber window
+#. text in the Batch download window; text in the Link grabber window
 #. Link grabber, in the empty "Save to" box: each file goes to its category's folder (Options → Save to)
 #, machine
 	Each file's category folder	每個檔案的類別資料夾
@@ -1830,6 +1840,10 @@
 #. noun: a file of no known type
 #, machine
 	File	檔案
+#. text in a dialog box
+#. window title: the question asked when the name typed in Download File Info's Save As is a file already there
+#, machine
+	File already exists	檔案已存在
 #. text in the Options window
 #. tooltip of "Mark downloaded files as coming from the internet" on Linux
 #, machine
@@ -2329,6 +2343,10 @@
 #, machine
 	Install 7-Zip (free), then right-click the download and choose Extract.	安裝 7-Zip (免費)，然後在下載項目上按一下滑鼠右鍵並選擇「解壓縮」。
 #. text in the Download video window
+#. button in Download video: download and install Deno, the JavaScript runtime YouTube needs (Deno is a program's name)
+#, machine
+	Install Deno	安裝 Deno
+#. text in the Download video window
 #. button: download and install the ffmpeg program
 #, machine
 	Install ffmpeg	安裝 ffmpeg
@@ -2467,6 +2485,10 @@
 #. a country's name (where a download's server is)
 #, machine
 	Japan	日本
+#. text in helpers.rs
+#. Video helpers: the row of the JavaScript runtime yt-dlp needs for YouTube (Deno is a program's name)
+#, machine
+	JavaScript runtime (Deno)	JavaScript 執行階段 (Deno)
 #. text in countries.rs
 #. a country's name (where a download's server is)
 #, machine
@@ -2584,6 +2606,10 @@
 #. Options → Remote check box (off by default)
 #, machine
 	Let phones and computers on the local network control MDM	允許區域網路上的手機和電腦控制 MDM
+#. text in helpers.rs
+#. Video helpers: what the JavaScript runtime is for, after its name (yt-dlp is a program's name)
+#, machine
+	lets yt-dlp list all of YouTube's qualities	讓 yt-dlp 列出 YouTube 的所有品質
 #. option (radio button) in the Batch download window
 #. the * in the address runs through letters
 #, machine
@@ -2847,6 +2873,10 @@
 #, machine
 	MDM does not answer. Trying again...	MDM 沒有回應。正在重試...
 #. text in helpers.rs
+#. Video helpers: MDM can't download Deno on this system (32-bit Windows, an unusual processor); Deno and Node.js are program names
+#, machine
+	MDM has no copy for this system: install Deno or Node.js	MDM 沒有此系統的副本：請安裝 Deno 或 Node.js
+#. text in helpers.rs
 #. Video helpers: MDM can't download this helper on this Windows (ffmpeg on 32-bit Windows); "Use another program" is the button below
 #, machine
 	MDM has no copy for this system: install it, or use another program	MDM 沒有此系統的副本：請安裝，或使用其他程式
@@ -2989,6 +3019,14 @@
 #. a country's name (where a download's server is)
 #, machine
 	Morocco	摩洛哥
+#. text in playlistdlg.rs
+#. a quality in Download video for a whole playlist: each video's best H.264 video with AAC sound, an MP4 that every video editor, TV and phone plays; keep "(H.264 + AAC)" as it is
+#, machine
+	Most compatible (H.264 + AAC)	最相容 (H.264 + AAC)
+#. text in the Download video window
+#. a choice in the Download video window: the best H.264 video with AAC sound, an MP4 that every video editor, TV and phone plays; keep "(H.264 + AAC)" as it is; {height} is the resolution (1080p)
+#, machine
+	Most compatible (H.264 + AAC) · {height}	最相容 (H.264 + AAC) · {height}
 #. button in a download's Properties window
 #. verb: move the file to another folder
 #, machine
@@ -4023,7 +4061,8 @@
 #. text in a download's progress window; text in a download's Properties window
 #, machine
 	Save To:	儲存至:
-#. text in the Link grabber window; text in rssdlg.rs
+#. text in the Batch download window; text in the Link grabber window; text in rssdlg.rs
+#. Batch download: the folder every file goes to (a label before its box)
 #. Link grabber: the folder the package's files go to (a label before its box)
 #. RSS feeds window, Download rules: the folder the rule's torrents go to
 #, machine
@@ -4986,6 +5025,11 @@
 #. text in errors.rs
 #, machine
 	the server sent an unexpected part of the file ({detail})	伺服器傳送了非預期的檔案部分（{detail}）
+#. text in errors.rs
+#. why a download failed (#1460): the browser's own download of the link was a file of {size} (such as 117.65 MB), but when MDM asked the server for it, it sent only {sent} (such as 4.65 KB): an error or a notice, not the file. Some links work only once, or only in the browser. Alt+click: the link clicked with the Alt key held, which leaves the download to the browser
+#. {size} = a file size such as "4.2 MB" (keep the braces as they are)
+#, machine
+	the server sent only {sent} where the browser's file is {size} (a link that works once, or only in the browser): Alt+click the link to let the browser download it	伺服器只傳送了 {sent}，而瀏覽器下載的檔案大小為 {size}（此連結只能使用一次，或只能在瀏覽器中使用）：按住 Alt 並按一下連結，讓瀏覽器下載。
 #. text in debrid.rs
 #. Options → Accounts: the service doesn't say whether the account is premium (Mega-Debrid, signed in with an API key); a free account's links are refused when downloading
 #, machine
@@ -5908,6 +5952,10 @@
 #, machine
 	Your own program: {path} ({version})	您的自有程式：{path} ({version})
 #. text in helpers.rs
+#. Video helpers: {path} = the computer's own JavaScript runtime (node.exe, deno.exe), used as it is: MDM needn't download one
+#, machine
+	Your system's, nothing to download: {path}	您系統的，無需下載：{path}
+#. text in helpers.rs
 #. Video helpers: {path} = the system's yt-dlp, ffmpeg or gallery-dl
 #, machine
 	Your system's: {path}	您的系統：{path}
@@ -6035,8 +6083,9 @@
 #. a kind of file, by its extension: {ext} = "ZIP", "PDF"…
 #, machine
 	{ext} File	{ext} 檔案
-#. text in the main window's messages (deleting downloads' files)
+#. text in the main window's messages (deleting downloads' files); text in torrent downloads
 #. a message: a deleted download's file stayed on the disk; {file} = its name
+#. error dialog when a torrent's files could not be deleted; {file} is the download's name, {error} why
 #. {error} = an error message (keep the braces as they are)
 #, machine
 	{file} could not be deleted from the disk: {error}	無法從磁碟刪除 {file}：{error}
@@ -6465,6 +6514,10 @@ extension	Drag the dots to move it along the edge	拖曳點點以沿邊緣移動
 #, machine
 extension	Enter its https:// address.	輸入其 https:// 位址。
 #. text in the browser extension
+#. button: forget / unpair this server
+#, machine
+extension	Forget	忘記
+#. text in the browser extension
 #. button on the download button over a video when the app didn't answer: opens the app's download page; MDM is the app's short name, keep it; very short
 #, machine
 extension	Get MDM	取得 MDM
@@ -6585,6 +6638,10 @@ extension	Mister Download Manager then downloads through the same proxy as this 
 #. the small arrow next to the Download video button that opens its menu (read aloud by screen readers)
 #, machine
 extension	More options	更多選項
+#. text in the browser extension
+#. in the list under the download button over a video, after a quality's height (1080p): the H.264 video with AAC sound in an MP4, the file that plays in every video editor, TV and phone; short, about 20 characters at most
+#, machine
+extension	Most compatible	最相容
 #. text in the browser extension
 #. menu command of the download button over a video: never show the button on this web site again
 #. {site} = a web site's name such as "example.com" (keep the braces as they are)

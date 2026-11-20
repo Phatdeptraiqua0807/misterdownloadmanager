@@ -69,7 +69,7 @@ pub fn install_fonts(defs: &mut egui::FontDefinitions, font_dir: Option<&std::pa
             Some(bytes) => {
                 defs.font_data.insert(
                     family.into(),
-                    std::sync::Arc::new(egui::FontData::from_owned(bytes)),
+                    std::sync::Arc::new(crate::theme::font_data(bytes)),
                 );
                 vec![family.to_owned()]
             }
@@ -328,6 +328,13 @@ fn caption_for(ctx: &egui::Context, control: Rect) -> Option<String> {
     Some(s.trim_end_matches(':').trim().replace('&', ""))
 }
 
+/// A control's name for screen readers, when its visible text isn't one ("+", "...", a label
+/// another control shares like "Edit..."): a reader says `name` instead.
+pub fn name(resp: &Response, name: &str) {
+    resp.ctx
+        .accesskit_node_builder(resp.id, |node| node.set_label(name.to_owned()));
+}
+
 /// A text box's or drop-down's name for screen readers, from its caption ([`caption_for`]).
 fn name_from_caption(resp: &Response) {
     if let Some(name) = caption_for(&resp.ctx, resp.rect) {
@@ -336,9 +343,14 @@ fn name_from_caption(resp: &Response) {
     }
 }
 
-/// Segoe UI −12: menu bar, toolbar labels.
+/// Segoe UI −12: menu bar, toolbar labels; Tahoma where the theme's menus take it (Luna:
+/// `[controls] ui-font = "tahoma"`).
 pub fn segoe() -> FontId {
-    FontId::proportional(crate::theme::font_size(crate::theme::metrics().font_ui))
+    let size = crate::theme::font_size(crate::theme::metrics().font_ui);
+    match crate::theme::current().controls.ui_font {
+        crate::palette::UiFont::System => FontId::proportional(size),
+        crate::palette::UiFont::Tahoma => FontId::new(size, FontFamily::Name("tahoma".into())),
+    }
 }
 
 /// Arial Bold −13: the Categories close "x".
@@ -1901,10 +1913,11 @@ impl Shine {
     pub fn stops(self, f: Color32, g: Color32) -> [(f32, Color32); 4] {
         use crate::derive::mix;
         match self {
+            // White over its top half, falling to the face along its bottom.
             Shine::Luna => [
-                (0.0, mix(f, g, 0.85)),
-                (0.4, mix(f, g, 0.6)),
-                (0.85, mix(f, g, 0.2)),
+                (0.0, g),
+                (0.45, mix(f, g, 0.92)),
+                (0.86, mix(f, g, 0.55)),
                 (1.0, f),
             ],
             Shine::Aero => [
@@ -2064,7 +2077,7 @@ fn era_bar(p: &Painter, rc: Rect, from: f32, to: f32, fill: Color32, mirrored: b
             (1.0, c.meter_track),
         ],
     );
-    let inner = rc.shrink(if blocks { 2.0 + m.border } else { m.border });
+    let inner = rc.shrink(if blocks { 1.0 + m.border } else { m.border });
     let w = inner.width();
     // A part of the inside, `a` to `b` of it from the bar's start.
     let span = |a: f32, b: f32| {
@@ -2083,10 +2096,16 @@ fn era_bar(p: &Painter, rc: Rect, from: f32, to: f32, fill: Color32, mirrored: b
     let (a, b) = ((from * w).round(), (to * w).round());
     if b > a && w > 0.0 {
         if blocks {
-            // Windows XP: blocks 2 points apart, lighter across their middle; whole ones, the
-            // last cut at the bar's end.
-            let stops = [(0.0, fill), (0.45, mix(fill, c.gloss, 0.55)), (1.0, fill)];
-            let bw = (inner.height() * 0.6).round().max(4.0);
+            // Windows XP: blocks 2 points apart, light along their top and bottom, deep across
+            // their middle; whole ones, the last cut at the bar's end.
+            let stops = [
+                (0.0, mix(fill, c.gloss, 0.7)),
+                (0.3, mix(fill, c.gloss, 0.3)),
+                (0.55, fill),
+                (0.8, mix(fill, c.gloss, 0.35)),
+                (1.0, mix(fill, c.gloss, 0.75)),
+            ];
+            let bw = (inner.height() * 0.5).round().max(4.0);
             let mut x = (a / (bw + 2.0)).floor() * (bw + 2.0);
             while x < b {
                 let block = span(x.max(a), (x + bw).min(w));
@@ -2310,6 +2329,17 @@ fn edit_text_with(
             state.store(ui.ctx(), edit_id);
         }
     }
+    // A line longer than its box is laid out from its left, whatever the box's alignment (#1403).
+    // egui keeps a one-line box's caret in sight by scrolling its text, measured from the text's
+    // left edge at 0; a line aligned right (a right-to-left interface's boxes, a number) is laid
+    // out left of 0, so it never scrolled: its end stayed out of sight, and End, the arrows, a
+    // click or typing there went on out of view. A line that fits keeps its alignment: there is
+    // nothing to scroll.
+    let align = if align != egui::Align::LEFT && overflows(ui, value, password, inner.width()) {
+        egui::Align::LEFT
+    } else {
+        align
+    };
     let te = egui::TextEdit::singleline(value)
         .id(edit_id)
         .align(egui::Align2([align, egui::Align::TOP]))
@@ -2401,6 +2431,16 @@ fn edit_text_with(
         edit_menu(&resp, value, password, false);
     }
     resp
+}
+
+/// Is a one-line box's text (`password`: its dots, as egui shows them) wider than `width`?
+fn overflows(ui: &Ui, value: &str, password: bool, width: f32) -> bool {
+    let shown = if password {
+        "\u{2022}".repeat(value.graphemes(true).count())
+    } else {
+        value.to_owned()
+    };
+    text_width_font(ui.painter(), tahoma(), &shown) > width
 }
 
 /// Draws a text box with `add`, without the text typed with Alt held: Alt+letter is an access
@@ -5389,6 +5429,61 @@ pub fn picked(ctx: &egui::Context, key: &str) -> Option<std::path::PathBuf> {
     answer
 }
 
+/// A folder's box and its "..." (the system's folder dialog, [`start_pick`] by `key`) at the
+/// box's trailing end: a window's Save to row. `rc`: the box and the button together, on screen.
+/// `empty`: what an empty box means (Batch download's "Each file's category folder"), shown
+/// muted in it while it isn't typed in. The box's response, and whether a folder was chosen with
+/// "..." this frame (it is then in `value`).
+pub fn folder_box(
+    ui: &mut Ui,
+    rc: Rect,
+    value: &mut String,
+    key: &str,
+    empty: Option<&str>,
+) -> (Response, bool) {
+    const BUTTON: f32 = 22.0;
+    const GAP: f32 = 6.0;
+    // English places: the box first, "..." after it (on its left in a right-to-left interface).
+    let e = rect(rc);
+    let field = rect(Rect::from_min_max(
+        e.min,
+        pos2(e.right() - BUTTON - GAP, e.bottom()),
+    ));
+    let dots = rect(Rect::from_min_max(pos2(e.right() - BUTTON, e.top()), e.max));
+    let typed = edit_light(ui, field, value, true, false);
+    if let Some(hint) = empty
+        && value.is_empty()
+        && !typed.has_focus()
+    {
+        let p = ui.painter().clone();
+        let ef = rect(field);
+        fit(
+            ui,
+            &p,
+            ef.left() + 5.0,
+            baseline_in(field.top(), field.height()),
+            hint,
+            MUTED(),
+            ef.right() - 4.0,
+            ("folder-box-empty", key),
+        );
+    }
+    if button_light(ui, dots, "...", ButtonKind::Normal, false).clicked() {
+        let from = value.trim().to_owned();
+        start_pick(ui.ctx(), key, move || {
+            rfd::FileDialog::new().set_directory(from).pick_folder()
+        });
+    }
+    let chose = match picked(ui.ctx(), key) {
+        Some(dir) => {
+            *value = dir.display().to_string();
+            true
+        }
+        None => false,
+    };
+    (typed, chose)
+}
+
 /// A press gives a control the keys, as in Windows (egui focuses only text boxes on a click):
 /// the arrows work in a radio group clicked, Ctrl+C in a field clicked. Its ring shows only
 /// once the keyboard is used ([`keyboard_in_use`]).
@@ -5546,6 +5641,52 @@ pub fn fill_l(p: &Painter, x0: f32, y0: f32, x1: f32, y1: f32, c: Color32) {
 /// [`px`] at an English pixel.
 pub fn px_l(p: &Painter, x: f32, y: f32, c: Color32) {
     px(p, mcol(x), y, c);
+}
+
+/// Windows XP's column headers (`[controls] header = "luna"`, `palette::HeaderLook`): the
+/// header's last three rows, English pixels `x0..=x1` ending at row `bottom`, shading toward
+/// the dividers' colour; under the pointer the theme's button glow (XP's orange). Nothing for
+/// flat headers.
+pub fn header_shade(p: &Painter, x0: f32, x1: f32, bottom: f32, hot: bool) {
+    use crate::derive::mix;
+    if crate::theme::current().controls.header != crate::palette::HeaderLook::Luna {
+        return;
+    }
+    let c = crate::theme::colors();
+    let rows = if hot && c.button_glow.a() > 0 {
+        let g = c.button_glow;
+        [mix(c.header, g, 0.55), g, crate::derive::shade(g, -0.06)]
+    } else {
+        [
+            mix(c.header, c.header_line, 0.5),
+            c.header_line,
+            c.header_sep,
+        ]
+    };
+    for (i, row) in rows.into_iter().enumerate() {
+        let y = bottom - 2.0 + i as f32;
+        fill_l(p, x0, y, x1, y, row);
+    }
+}
+
+/// A divider between two column headers at English pixel column `x`, header rows `top..=bottom`,
+/// in `line`: the header's whole height (flat headers), or Windows XP's, inset from both ends
+/// with a light line after it.
+pub fn header_divider(p: &Painter, x: f32, top: f32, bottom: f32, line: Color32) {
+    if crate::theme::current().controls.header == crate::palette::HeaderLook::Luna {
+        let (top, bottom) = (top + 3.0, bottom - 4.0);
+        fill_l(p, x, top, x, bottom, line);
+        fill_l(
+            p,
+            x + 1.0,
+            top,
+            x + 1.0,
+            bottom,
+            crate::theme::colors().gloss,
+        );
+    } else {
+        fill_l(p, x, top, x, bottom, line);
+    }
 }
 
 /// One tab of a light tab control: its x range (inclusive, from the client origin) when
@@ -6333,11 +6474,17 @@ pub mod caption {
     fn bar_stops(era: Shine, bar: Color32, g: Color32) -> Vec<(f32, Color32)> {
         use crate::derive::{mix, shade};
         match era {
+            // A bright rim along the top, the bar's colour, lighter again toward the bottom,
+            // then a dark bottom edge.
             Shine::Luna => vec![
-                (0.0, mix(bar, g, 0.45)),
-                (0.12, mix(bar, g, 0.12)),
-                (0.5, bar),
-                (1.0, shade(bar, -0.06)),
+                (0.0, shade(bar, 0.1)),
+                (0.06, shade(bar, 0.13)),
+                (0.12, shade(bar, 0.05)),
+                (0.2, bar),
+                (0.55, bar),
+                (0.88, shade(bar, 0.05)),
+                (0.94, shade(bar, 0.02)),
+                (1.0, shade(bar, -0.1)),
             ],
             Shine::Aero => vec![
                 (0.0, mix(bar, g, 0.45)),
@@ -6653,7 +6800,17 @@ pub mod caption {
             Shine::Aero => (0.0, 4.0),
             Shine::Aqua => (size.y / 2.0, size.y / 2.0),
         };
-        fill_shaded_corners(p, tile, top, bottom, &era.stops(base, c.gloss));
+        let stops = match era {
+            // Windows XP: a light corner at the top, the face deep below it.
+            Shine::Luna => vec![
+                (0.0, mix(base, c.gloss, 0.4)),
+                (0.3, mix(base, c.gloss, 0.1)),
+                (0.8, base),
+                (1.0, shade(base, -0.04)),
+            ],
+            _ => era.stops(base, c.gloss).to_vec(),
+        };
+        fill_shaded_corners(p, tile, top, bottom, &stops);
         let edge = match era {
             Shine::Luna => c.gloss.gamma_multiply(0.9),
             Shine::Aero => shade(bar, -0.35),
@@ -6771,7 +6928,13 @@ pub mod caption {
             egui::Image::new(egui::include_image!("../assets/icons/app/mdm-32.png"))
                 .paint_at(ui, Rect::from_center_size(icon_c.round(), vec2(16.0, 16.0)));
         }
-        let font = if st.bold {
+        let font = if st.era == Some(Shine::Luna) {
+            // Windows XP's title: bold and larger than its menus.
+            FontId::new(
+                crate::theme::font_size(crate::theme::metrics().font_ui_bold),
+                egui::FontFamily::Name("tahoma-bold".into()),
+            )
+        } else if st.bold {
             FontId::new(segoe().size, egui::FontFamily::Name("tahoma-bold".into()))
         } else {
             segoe()
@@ -7787,6 +7950,10 @@ mod tests {
         /// A dialog's access letter after the box (a button's "&Start"): Alt+it presses it; how
         /// many times it has.
         access: Option<(char, u32)>,
+        /// Drawn on a right-to-left surface (the box's text starts at its right).
+        rtl: bool,
+        /// Where the last pass drew the box's text on screen (its left and right ends).
+        text_span: Option<(f32, f32)>,
     }
 
     impl TextBoxRun {
@@ -7810,6 +7977,8 @@ mod tests {
                 t: 0.0,
                 lines,
                 access: None,
+                rtl: false,
+                text_span: None,
             };
             run.pass(Vec::new());
             run
@@ -7825,7 +7994,9 @@ mod tests {
             };
             let (rc, value, id, lines) = (self.rc, &mut self.value, &mut self.id, self.lines);
             let access = &mut self.access;
+            let rtl = self.rtl;
             let mut out = self.ctx.run_ui(raw, |ui| {
+                let _s = Surface::enter_if(rtl, 0.0, 600.0);
                 *id = Some(if lines {
                     multiline_light(ui, rc, value, "t1084", true).id
                 } else {
@@ -7838,6 +8009,15 @@ mod tests {
                 }
             });
             out.textures_delta.clear();
+            self.text_span = out.shapes.iter().find_map(|c| match &c.shape {
+                egui::Shape::Text(t) if t.galley.text() == self.value && !self.value.is_empty() => {
+                    Some((
+                        t.pos.x + t.galley.rect.left(),
+                        t.pos.x + t.galley.rect.right(),
+                    ))
+                }
+                _ => None,
+            });
             out.platform_output
                 .commands
                 .into_iter()
@@ -7927,6 +8107,69 @@ mod tests {
                 .expect("a caret");
             let (a, b) = (r.primary.index.0, r.secondary.index.0);
             (a.min(b), a.max(b))
+        }
+    }
+
+    /// #1403: a one-line box whose text is longer than the box follows its caret, in a
+    /// left-to-right interface and in a right-to-left one alike (there, its text aligned right,
+    /// it never scrolled: End, typing at the end and a drag past the edge went on out of sight).
+    /// A text that fits keeps to the box's start (the right, in a right-to-left interface).
+    #[test]
+    fn a_long_line_scrolls_to_its_caret_in_both_directions() {
+        use egui::PointerButton::Primary;
+        // A value typed in, not a text to translate.
+        let text = "https://downloads.example.com/archive/2026/november/collections/a-very-long-folder-name/img*.jpg";
+        let n = text.chars().count();
+        for rtl in [false, true] {
+            let mut b = TextBoxRun::new(text);
+            b.rtl = rtl;
+            b.pass(Vec::new());
+            let rc = b.rc;
+            let (left, right) = (rc.left() + 5.0, rc.right() - 5.0);
+            let mid = baseline_in(rc.top(), rc.height()) - 4.0;
+            // Unfocused, it shows its start; it runs past the box's end.
+            let (l, r) = b.text_span.expect("drawn");
+            assert_eq!(l, left, "rtl {rtl}");
+            assert!(r > rc.right(), "rtl {rtl}");
+            b.click(pos2(rc.center().x, mid), Primary);
+            let clicked = b.selection();
+            assert!(clicked.0 > 0 && clicked.0 < n, "rtl {rtl}: {clicked:?}");
+            // End: the caret at the end, the text's end in sight at the box's end.
+            b.typed(egui::Key::End, "", Default::default());
+            assert_eq!(b.selection(), (n, n), "rtl {rtl}");
+            let (l, r) = b.text_span.unwrap();
+            assert!(
+                l < rc.left() && (r - right).abs() < 1.0,
+                "rtl {rtl}: {l} {r}"
+            );
+            // Typed at the end: added there, still in sight.
+            b.typed(egui::Key::X, "X", Default::default());
+            assert!(b.value.ends_with("jpgX"), "rtl {rtl}");
+            assert!((b.text_span.unwrap().1 - right).abs() < 1.0, "rtl {rtl}");
+            // A click at the box's end puts the caret where the text there is: the end.
+            b.click(pos2(right - 1.0, mid), Primary);
+            assert_eq!(b.selection(), (n + 1, n + 1), "rtl {rtl}");
+            // Home: back to the start.
+            b.typed(egui::Key::Home, "", Default::default());
+            assert_eq!(b.selection(), (0, 0), "rtl {rtl}");
+            assert_eq!(b.text_span.unwrap().0, left, "rtl {rtl}");
+            // A drag past the box's end selects on, the text scrolling under it.
+            b.drag(pos2(rc.center().x, mid), pos2(rc.right() + 60.0, mid));
+            let (lo, hi) = b.selection();
+            assert!(lo > 0 && hi > clicked.1, "rtl {rtl}: {lo} {hi}");
+            assert!(b.text_span.unwrap().0 < left, "rtl {rtl}: scrolled");
+        }
+        // A short text keeps to the box's start: the left, or the right in a right-to-left one.
+        for rtl in [false, true] {
+            let mut b = TextBoxRun::new("https://example.com/a*.zip");
+            b.rtl = rtl;
+            b.pass(Vec::new());
+            let (l, r) = b.text_span.unwrap();
+            if rtl {
+                assert!((r - (b.rc.right() - 5.0)).abs() < 1.0, "{l} {r}");
+            } else {
+                assert_eq!(l, b.rc.left() + 5.0);
+            }
         }
     }
 

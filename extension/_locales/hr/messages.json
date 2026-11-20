@@ -332,10 +332,16 @@
   "video_original": {
     "message": "izvorno"
   },
+  "video_compatible": {
+    "message": "Najkompatibilnije"
+  },
   "popup_video_hide_fullscreen": {
     "message": "Sakrij gumb za preuzimanje u načinu cijelog zaslona"
   },
   "popup_video_hide_fullscreen_title": {
     "message": "Dok je stranica u načinu cijelog zaslona, njezini videozapisi ne prikazuju gumb Preuzmi videozapis"
+  },
+  "popup_remote_forget": {
+    "message": "Zaboravi"
   }
 }

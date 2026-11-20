@@ -421,6 +421,11 @@
             "null"
           ]
         },
+        "hidden": {
+          "default": false,
+          "description": "`/fromhost` (beyond IDM, #1333): started by the browser native messaging host:\nstarts hidden without marking an OS session login.",
+          "type": "boolean"
+        },
         "ids": {
           "default": [],
           "items": {
@@ -729,6 +734,10 @@
             "string",
             "null"
           ]
+        },
+        "compatible": {
+          "description": "The most compatible choice (#1439): an H.264 picture with AAC sound in an MP4, which\nevery video editor, TV and phone plays; the menu says so beside its height. False from\nan app older than the field.",
+          "type": "boolean"
         },
         "ext": {
           "default": "",

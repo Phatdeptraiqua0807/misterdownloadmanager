@@ -332,10 +332,16 @@
   "video_original": {
     "message": "オリジナル"
   },
+  "video_compatible": {
+    "message": "最も互換性あり"
+  },
   "popup_video_hide_fullscreen": {
     "message": "全画面表示時にダウンロード ボタンを非表示にする"
   },
   "popup_video_hide_fullscreen_title": {
     "message": "ページが全画面表示されている間、動画にダウンロード ボタンは表示されません"
+  },
+  "popup_remote_forget": {
+    "message": "削除"
   }
 }

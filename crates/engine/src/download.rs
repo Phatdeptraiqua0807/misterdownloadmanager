@@ -113,6 +113,16 @@ pub struct Options {
     /// bot checks (Cloudflare, seen on a public PDF), while MDM's own passes. Set when
     /// `user_agent` is the browser's. A later 403 is left to the download.
     pub agent_fallback: Option<String>,
+    /// The download's last try at a site whose bot check refused it (`refused_as_a_program`)
+    /// and the browser-like connection too (#668): its first request once more, on MDM's own
+    /// connection, with this User-Agent instead (#1422). MDM's own name
+    /// (`agent::OWN_USER_AGENT`): SourceForge's check lets programs that say what they are
+    /// through, and refuses whatever claims to be a browser without connecting like one. The
+    /// site is then remembered for the session (`agent::own_for`): its next downloads ask this
+    /// way at once. None: no such try (the download's User-Agent is one the user chose, or a
+    /// stream's that must stay its resolver's); a User-Agent in the request's own headers is
+    /// the caller's choice too, never replaced.
+    pub own_agent: Option<String>,
     /// From the browser: the address its own download of this file ended at, its redirects
     /// followed. When the address asked for is refused before any byte (`link_refused`: a
     /// one-time link the browser already spent, a token bound to its session, a site that
@@ -269,6 +279,7 @@ impl Default for Options {
             user_agent: crate::agent::automatic(),
             automatic_agent: true,
             agent_fallback: None,
+            own_agent: None,
             browser_final: None,
             save_interval: Duration::from_secs(2),
             speed_limit: None,
@@ -413,6 +424,16 @@ pub enum Error {
         "the site sent a web page instead of the file (a waiting page, a captcha or a sign-in): open the link in your browser, finish there, and the download comes back to MDM"
     )]
     GotWebPage,
+    /// The server's answer is no larger than a web page (`sent` bytes) where the browser's own
+    /// download of the link was a file of `size` bytes, larger than any page (#1460): an error,
+    /// a notice or an empty answer in the file's place (a link that works once, or only in the
+    /// browser), never saved as the file.
+    #[error(
+        "the server sent only {} where the browser's file is {} (a link that works once, or only in the browser): Alt+click the link to let the browser download it",
+        disk::human(*sent),
+        disk::human(*size)
+    )]
+    NotTheFile { size: u64, sent: u64 },
     /// A full answer to a range request for the same, unchanged file: the server (or one CDN
     /// edge) didn't serve the range this time. Retried; the file did not change.
     #[error("the server did not send the requested part")]
@@ -467,13 +488,19 @@ impl Error {
     /// next download of it) is what helps; the interface waits for one.
     pub fn wants_new_address(&self) -> bool {
         matches!(self, Error::Status(s) if matches!(s.as_u16(), 401 | 403 | 404 | 410))
-            || matches!(self, Error::LinkExpired | Error::GotWebPage)
+            || matches!(
+                self,
+                Error::LinkExpired | Error::GotWebPage | Error::NotTheFile { .. }
+            )
     }
 
     /// The address no longer serves this file (or refuses us): retrying won't help.
     fn link_dead(&self) -> bool {
         matches!(self, Error::Status(s) if matches!(s.as_u16(), 401 | 403 | 404 | 410 | 416))
-            || matches!(self, Error::GotWebPage | Error::LinkExpired | Error::BotCheck)
+            || matches!(
+                self,
+                Error::GotWebPage | Error::NotTheFile { .. } | Error::LinkExpired | Error::BotCheck
+            )
             // A site's refusal; a service's, unless waiting helps (#44).
             || matches!(self, Error::Refused(r) if !matches!(r, Refusal::Service { fault, .. } if fault.retry_wait().is_some()))
             // Login refused; no such file (or no permission); a name the server won't take.
@@ -915,6 +942,9 @@ pub struct KeptAnswer {
     /// The browser-like connection it came through, when only that one got past the site's
     /// bot check (#668): the download goes on with it.
     browser: Option<Arc<crate::browserlike::Browser>>,
+    /// The User-Agent it got through with, when only MDM's own name got past the site's bot
+    /// check (#1422): the download goes on under it.
+    own_agent: Option<String>,
     headers: HeaderMap,
     took: Duration,
     at: std::time::Instant,
@@ -968,7 +998,13 @@ pub async fn probe_kept(
         None => (url.clone(), headers),
     };
     let seen = Arc::new(crate::server::ServerSeen::default());
-    let client = client(opts, &target, &as_get, &seen)?;
+    // #1422: MDM's own name, when the site's bot check let only it through earlier this
+    // session: asked so at once; otherwise the last try, after the browser-like connection.
+    let own = own_agent(opts, &headers).filter(|_| unlocked.is_none());
+    let remembered = own.clone().filter(|_| crate::agent::own_for(&target));
+    let as_own = remembered.clone().map(|own| speaking_own(opts, own));
+    let first_opts = as_own.as_ref().unwrap_or(opts);
+    let client = client(first_opts, &target, &as_get, &seen)?;
     let expects = expects_other_file(
         opts.expected_type.as_deref(),
         opts.expected_size,
@@ -983,13 +1019,13 @@ pub async fn probe_kept(
         target.clone(),
         headers.clone(),
         opts.post.as_ref(),
-        opts.site_agent(),
+        first_opts.site_agent(),
         expects,
         &CancellationToken::new(),
     )
     .await
     {
-        Err(e) if agent_refused(&e) && opts.agent_fallback.is_some() => {
+        Err(e) if agent_refused(&e) && first_opts.agent_fallback.is_some() => {
             let mut plain = opts.clone();
             plain.user_agent = opts.agent_fallback.clone().unwrap_or_default();
             let client = self::client(&plain, &target, &as_get, &seen)?;
@@ -1007,21 +1043,47 @@ pub async fn probe_kept(
         }
         asked => (client, asked),
     };
+    let (mut client, mut own_agent) = (client, remembered);
     let (head, body, browser, headers, took) = match asked {
         Ok((resp, headers, took)) => (Head::of(&resp), Body::Http(resp), None, headers, took),
         // #668: the site refused MDM's connection as a program's (`refused_as_a_program`):
         // looked at once more the way a browser connects, its answer kept for the download
         // (which then asks no more).
         Err(e) if refused_as_a_program(&e) && unlocked.is_none() && opts.post.is_none() => {
+            if own_agent.take().is_some() {
+                // Remembered, but no longer let through: learnt again next time.
+                crate::agent::forget_own(&asked_at);
+            }
             let cancel = CancellationToken::new();
-            let (b, (head, body, headers, took)) =
-                browser_ask(opts, &asked_at, &asked_with, expects, &cancel)
-                    .await
-                    .map_err(|other| match other {
-                        Error::Cancelled | Error::Adapter(_) => other,
-                        _ => e,
-                    })?;
-            (head, body, Some(b), headers, took)
+            match browser_ask(opts, &asked_at, &asked_with, expects, &cancel).await {
+                Ok((b, (head, body, headers, took))) => (head, body, Some(b), headers, took),
+                Err(other @ (Error::Cancelled | Error::Adapter(_))) => return Err(other),
+                // #1422: refused that way too; once more under MDM's own name, the last try.
+                Err(_) => match own.filter(|_| as_own.is_none()) {
+                    Some(own) => {
+                        let o = speaking_own(opts, own.clone());
+                        client = self::client(&o, &asked_at, &as_get, &seen)?;
+                        let (resp, headers, took) = get(
+                            &client,
+                            asked_at.clone(),
+                            asked_with,
+                            None,
+                            o.site_agent(),
+                            expects,
+                            &cancel,
+                        )
+                        .await
+                        .map_err(|other| match other {
+                            Error::Cancelled | Error::Adapter(_) => other,
+                            _ => e,
+                        })?;
+                        crate::agent::remember_own(&asked_at);
+                        own_agent = Some(own);
+                        (Head::of(&resp), Body::Http(resp), None, headers, took)
+                    }
+                    None => return Err(e),
+                },
+            }
         }
         Err(e) => return Err(e),
     };
@@ -1036,6 +1098,11 @@ pub async fn probe_kept(
         StatusCode::OK => (head.len, true),
         _ => (head.len, false),
     };
+    // No larger than a page where the browser's file is larger than any (#1460): said here, before
+    // anything is saved.
+    if let Some(sent) = size {
+        not_the_file(opts.expected_size, sent)?;
+    }
     // A page where a file that never is one was expected, whatever type it came as (#701).
     let body = if from_zero
         && never_a_page(
@@ -1069,6 +1136,7 @@ pub async fn probe_kept(
         head,
         body,
         browser,
+        own_agent,
         headers,
         took,
         at: std::time::Instant::now(),
@@ -2100,6 +2168,8 @@ async fn run_fresh(
     let mut opts = opts;
     // The first request had to give up the browser's User-Agent (#372).
     let mut asked_as_mdm = false;
+    // It went under MDM's own name, the only one the site's bot check let through (#1422).
+    let mut asked_own = false;
     shared.limiter.set(opts.speed_limit);
     let (shared, cancel) = (&shared, &cancel);
     shared.conn(0, |_| {});
@@ -2131,6 +2201,11 @@ async fn run_fresh(
             );
             let _ = shared.seen.set(k.seen);
             browser = k.browser;
+            // The look got through under MDM's own name (#1422): so does the rest.
+            if let Some(own) = k.own_agent {
+                opts = speaking_own(&opts, own);
+                asked_own = true;
+            }
             (k.as_get, k.client, (k.head, k.body), k.headers, k.took)
         }
         None => {
@@ -2150,10 +2225,24 @@ async fn run_fresh(
             first_at = target.clone();
             let as_get = AsGet::default();
             let seen = shared.seen.get_or_init(Default::default).clone();
-            let as_given = opts.clone();
             // The download's own User-Agent, which the browser-like connection carries (#668),
-            // even when MDM's connection had to give it up (#372).
-            let given_agent = opts.user_agent.clone();
+            // even when MDM's connection had to give it up (#372, #1422).
+            let given_agent = (opts.user_agent.clone(), opts.automatic_agent);
+            // #1422: a site whose bot check let only MDM's own name through earlier this
+            // session is asked so at once, not refused twice more first.
+            let own = own_agent(&opts, &asked).filter(|_| unlocked.is_none());
+            if let Some(own) = own.clone().filter(|_| crate::agent::own_for(&target)) {
+                shared.event(format!(
+                    "{}: its bot check let only Mister Download Manager's own name through \
+                     earlier; asking so",
+                    target.host_str().unwrap_or("?"),
+                ));
+                opts = speaking_own(&opts, own);
+                asked_own = true;
+            }
+            // Its own name tried already: not once more after the browser-like connection.
+            let own_tried = asked_own;
+            let as_given = opts.clone();
             let ask = FirstAsk {
                 as_get: &as_get,
                 seen: &seen,
@@ -2200,14 +2289,33 @@ async fn run_fresh(
                     (as_get, client0, (head, Body::Http(resp)), headers, ttfb)
                 }
                 Err(e) if refused_as_a_program(&e) && unlocked.is_none() && opts.post.is_none() => {
-                    if asked_as_mdm {
-                        opts.user_agent = given_agent;
-                        asked_as_mdm = false;
+                    if asked_as_mdm || asked_own {
+                        (opts.user_agent, opts.automatic_agent) = given_agent;
+                        (asked_as_mdm, asked_own) = (false, false);
                     }
-                    let (b, head, body, headers, ttfb) =
-                        browser_first(&opts, &target, &asked, e, expects, shared, cancel).await?;
-                    browser = Some(b);
-                    (as_get, client0, (head, body), headers, ttfb)
+                    if own_tried {
+                        // Remembered, but no longer let through: learnt again next time.
+                        crate::agent::forget_own(&target);
+                    }
+                    match browser_first(&opts, &target, &asked, e, expects, shared, cancel).await {
+                        Ok((b, head, body, headers, ttfb)) => {
+                            browser = Some(b);
+                            (as_get, client0, (head, body), headers, ttfb)
+                        }
+                        // #1422: refused the way a browser connects too; once more under MDM's
+                        // own name, the last try.
+                        Err(refused) if refused_as_a_program(&refused) && !own_tried => {
+                            let Some(own) = own else {
+                                return Err(refused);
+                            };
+                            let (o, client1, ((resp, headers), ttfb)) =
+                                ask.as_own(&opts, own, &target, &asked, refused).await?;
+                            (opts, asked_own) = (o, true);
+                            let head = Head::of(&resp);
+                            (as_get, client1, (head, Body::Http(resp)), headers, ttfb)
+                        }
+                        Err(e) => return Err(e),
+                    }
                 }
                 Err(e) => return Err(e),
             }
@@ -2258,6 +2366,11 @@ async fn run_fresh(
         head.status,
         size.map_or("unknown".to_owned(), disk::human),
     ));
+    // #1460: no larger than a page where the browser's file is larger than any, however it was
+    // asked (the look's kept answer, the browser-like connection, MDM's own name).
+    if let Some(sent) = size {
+        not_the_file(opts.expected_size, sent)?;
+    }
     // Credentials stay with the host they were given for, with the cookies pages set on the way
     // (`get`); the first request's own range (`request_cap`) isn't theirs.
     let mut headers = headers;
@@ -2311,6 +2424,12 @@ async fn run_fresh(
     } else {
         body
     };
+    // #1460: an answer that doesn't say its size, read as far as a page goes first where the
+    // browser's file is larger: one that ends there isn't the file.
+    let body = match size {
+        None => not_short(body, opts.expected_size, cancel).await?,
+        Some(_) => body,
+    };
     // A file the engine names whose address and server leave its type unsaid: its first bytes
     // say it (#800), and still come first to the file.
     let (body, sniffed) =
@@ -2341,6 +2460,7 @@ async fn run_fresh(
         saved.checksum = checksum.clone();
         saved.final_get = opts.post.is_some() && post.is_none();
         saved.asked_as_mdm = asked_as_mdm;
+        saved.asked_as_own = asked_own;
         saved.browser_like = browser.is_some();
         let ctx = Arc::new(Ctx {
             client: client0.clone(),
@@ -2645,6 +2765,17 @@ async fn run_resume(
         && let Some(agent) = opts.agent_fallback.take()
     {
         opts.user_agent = agent;
+    }
+    // Only MDM's own name got past the site's bot check (#1422), for this download or for its
+    // site earlier this session: it goes on under it.
+    if !saved.browser_like
+        && (saved.asked_as_own || crate::agent::own_for(&saved.url))
+        && let Some(own) = own_agent(&opts, &headers)
+    {
+        shared.event(
+            "Going on under Mister Download Manager's own name, as the site's bot check asked",
+        );
+        opts = speaking_own(&opts, own);
     }
     shared.limiter.set(opts.speed_limit);
     let bad = |what: &str| Error::BadState(format!("{}: {what}", state_file.display()));
@@ -3280,8 +3411,8 @@ fn forced_gap(force: bool, took: Duration) -> Duration {
 fn link_refused(e: &Error) -> bool {
     matches!(e, Error::Status(s) if matches!(s.as_u16(), 401 | 403 | 404 | 410 | 412))
         // The site's page where the browser got the file (#701): its link spent, or bound to
-        // the browser's visit.
-        || matches!(e, Error::GotWebPage)
+        // the browser's visit. So is an answer far smaller than the browser's file (#1460).
+        || matches!(e, Error::GotWebPage | Error::NotTheFile { .. })
 }
 
 /// What a download's first request needs besides its address, headers and options.
@@ -3325,6 +3456,44 @@ impl FirstAsk<'_> {
             first => Ok((client0, first, false)),
         }
     }
+
+    /// #1422: the first request once more, after the site's bot check refused the download's
+    /// User-Agent and the browser-like connection too (`refused`, the error told if this fails
+    /// as well): on MDM's own connection under `own` (`Options::own_agent`), at the same address
+    /// with the same headers (cookies, Referer, range), once. With the answer, the options and
+    /// client the download goes on with; the site is remembered for the session.
+    async fn as_own(
+        &self,
+        opts: &Options,
+        own: String,
+        url: &Url,
+        headers: &HeaderMap,
+        refused: Error,
+    ) -> Result<(Options, Client, ((Response, HeaderMap), Duration)), Error> {
+        let (shared, cancel) = (self.shared, self.cancel);
+        let host = url.host_str().unwrap_or("?");
+        shared.event(format!(
+            "{host}: refused the way a browser connects too; asking once more as Mister \
+             Download Manager itself ({own})"
+        ));
+        let opts = speaking_own(opts, own);
+        let client = client(&opts, url, self.as_get, self.seen)?;
+        match first_get(&client, url, headers, &opts, self.expects, shared, cancel).await {
+            Ok(answer) => {
+                crate::agent::remember_own(url);
+                shared.event(format!(
+                    "{host}: let Mister Download Manager through under its own name; \
+                     downloading so (remembered for this session)"
+                ));
+                Ok((opts, client, answer))
+            }
+            Err(e @ (Error::Cancelled | Error::Adapter(_))) => Err(e),
+            Err(e) => {
+                shared.event(format!("{host}, asked as Mister Download Manager: {e}"));
+                Err(refused)
+            }
+        }
+    }
 }
 
 /// A plain 403, which a browser's User-Agent may have brought on (#372). A site's bot check
@@ -3339,6 +3508,23 @@ fn agent_refused(e: &Error) -> bool {
 /// (FileHippo's, #630).
 fn refused_as_a_program(e: &Error) -> bool {
     matches!(e, Error::BotCheck) || matches!(e, Error::Status(s) if s.as_u16() == 412)
+}
+
+/// The User-Agent a download may name itself with at a site whose bot check refused it
+/// (#1422, `Options::own_agent`): never in place of one the request's own headers carry (the
+/// caller's choice), nor when it is the download's already.
+fn own_agent(opts: &Options, headers: &HeaderMap) -> Option<String> {
+    opts.own_agent
+        .clone()
+        .filter(|own| *own != opts.user_agent && !headers.contains_key(header::USER_AGENT))
+}
+
+/// `opts` speaking under MDM's own name `own` (#1422): no other User-Agent is tried after it.
+fn speaking_own(opts: &Options, own: String) -> Options {
+    let mut opts = opts.clone();
+    opts.speak_as(own);
+    opts.agent_fallback = None;
+    opts
 }
 
 /// #668: the first request once more, after the site refused MDM's own connection as a
@@ -3789,7 +3975,52 @@ async fn first_get(
         )
     })
     .await?;
+    // #1460: an answer no larger than a page where the browser's file is larger than any, told
+    // here so the address the browser's download ended at is asked instead (#630).
+    if let Some(sent) = answer_size(resp.status(), resp.headers(), resp.content_length()) {
+        not_the_file(opts.expected_size, sent)?;
+    }
     Ok(((resp, headers), took))
+}
+
+/// The whole file's size an answer gives: a 200's length, a 206's total; None when it doesn't
+/// say (a chunked answer, a 206 of unknown total).
+fn answer_size(status: StatusCode, headers: &HeaderMap, len: Option<u64>) -> Option<u64> {
+    match status {
+        StatusCode::OK => len,
+        StatusCode::PARTIAL_CONTENT => parse_content_range(headers).ok().and_then(|(.., t)| t),
+        _ => None,
+    }
+}
+
+/// `Error::NotTheFile` when the server's answer, `sent` bytes in all, is no larger than a web
+/// page (`PAGE_PEEK`) where the browser's own download of the link announced a file of `size`
+/// bytes, larger than any page (#1460, `Options::expected_size`): an error, a notice or an empty
+/// answer in the file's place, which a type alone doesn't tell (JSON, plain text, none). Sizes
+/// that differ less are left alone: a file the server changed, a browser's estimate.
+fn not_the_file(size: Option<u64>, sent: u64) -> Result<(), Error> {
+    match size {
+        Some(size) if size > PAGE_PEEK as u64 && sent <= PAGE_PEEK as u64 => {
+            Err(Error::NotTheFile { size, sent })
+        }
+        _ => Ok(()),
+    }
+}
+
+/// [`not_the_file`] for an answer that doesn't say its size (chunked): its first bytes, up to
+/// one more than a page has, are read (still first in the body returned); an answer that ends
+/// before is no larger than a page. Nothing is read when the browser announced no larger file.
+async fn not_short(
+    body: Body,
+    size: Option<u64>,
+    cancel: &CancellationToken,
+) -> Result<Body, Error> {
+    if size.is_none_or(|n| n <= PAGE_PEEK as u64) {
+        return Ok(body);
+    }
+    let (body, first) = peek(body, PAGE_PEEK + 1, cancel).await?;
+    not_the_file(size, first.len() as u64)?;
+    Ok(body)
 }
 
 /// `attempt` retried as `first_get` does; with its result, how long the try that got it took.
@@ -4883,6 +5114,89 @@ mod web_page_tests {
         // A file shorter than what is looked at.
         let short = not_a_page(answer(&[b"Rar!"]), &cancel).await.unwrap();
         assert_eq!(all(short).await, b"Rar!");
+    }
+
+    /// #1460: an answer no larger than a page where the browser's file is larger than any is
+    /// not the file; sizes that differ less, or no size from the browser, are left alone.
+    #[test]
+    fn an_answer_far_smaller_than_the_browsers_file_is_not_it() {
+        let page = PAGE_PEEK as u64;
+        // The report's: 117.65 MB announced, 4.65 KB sent.
+        let report = 123_365_000;
+        assert!(matches!(
+            not_the_file(Some(report), 4_762),
+            Err(Error::NotTheFile {
+                size: 123_365_000,
+                sent: 4_762
+            })
+        ));
+        assert!(not_the_file(Some(report), 0).is_err(), "an empty answer");
+        assert!(not_the_file(Some(page + 1), page).is_err());
+        // The file, a file a little different (changed, re-encoded), or a larger one.
+        assert!(not_the_file(Some(report), report).is_ok());
+        assert!(not_the_file(Some(report), report - (5 << 20)).is_ok());
+        assert!(not_the_file(Some(page + 1), page + 1).is_ok());
+        // A browser's file no larger than a page: a small file is a small file.
+        assert!(not_the_file(Some(page), 10).is_ok());
+        assert!(not_the_file(Some(40 << 10), 4_762).is_ok());
+        // Nothing announced (a link added by hand, Link grabber).
+        assert!(not_the_file(None, 0).is_ok());
+    }
+
+    /// #1460: the size an answer gives, by its status.
+    #[test]
+    fn an_answers_size_by_its_status() {
+        let mut h = HeaderMap::new();
+        assert_eq!(answer_size(StatusCode::OK, &h, Some(4_762)), Some(4_762));
+        assert_eq!(answer_size(StatusCode::OK, &h, None), None);
+        h.insert(
+            header::CONTENT_RANGE,
+            HeaderValue::from_static("bytes 0-1023/123365000"),
+        );
+        assert_eq!(
+            answer_size(StatusCode::PARTIAL_CONTENT, &h, Some(1024)),
+            Some(123_365_000)
+        );
+        h.insert(
+            header::CONTENT_RANGE,
+            HeaderValue::from_static("bytes 0-1023/*"),
+        );
+        assert_eq!(
+            answer_size(StatusCode::PARTIAL_CONTENT, &h, Some(1024)),
+            None
+        );
+        assert_eq!(answer_size(StatusCode::NO_CONTENT, &h, Some(0)), None);
+    }
+
+    /// #1460: a chunked answer that ends before a page's size, where the browser's file is
+    /// larger, is refused; a longer one comes whole, its first bytes still first; nothing is read
+    /// without a larger file announced.
+    #[tokio::test]
+    async fn a_chunked_answer_is_read_as_far_as_a_page() {
+        let cancel = CancellationToken::new();
+        let big = Some(123_365_000);
+        let json: &'static [u8] = b"{\"zt\":0,\"info\":\"link expired\"}";
+        assert!(matches!(
+            not_short(answer(&[&json[..5], &json[5..]]), big, &cancel).await,
+            Err(Error::NotTheFile { sent: 30, .. })
+        ));
+        assert!(matches!(
+            not_short(answer(&[]), big, &cancel).await,
+            Err(Error::NotTheFile { sent: 0, .. })
+        ));
+        let file: Vec<u8> = (0..(PAGE_PEEK as u32 + 5000))
+            .map(|i| (i % 251) as u8)
+            .collect();
+        let leaked: &'static [u8] = Box::leak(file.clone().into_boxed_slice());
+        let body = answer(&[&leaked[..100], &leaked[100..70_000], &leaked[70_000..]]);
+        let kept = not_short(body, big, &cancel).await.unwrap();
+        assert_eq!(all(kept).await, file);
+        let small = not_short(answer(&[json]), Some(40 << 10), &cancel)
+            .await
+            .unwrap();
+        assert_eq!(all(small).await, json);
+        let none = not_short(answer(&[json]), None, &cancel).await.unwrap();
+        assert_eq!(all(none).await, json);
     }
 }
 

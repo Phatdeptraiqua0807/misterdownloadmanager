@@ -332,10 +332,16 @@
   "video_original": {
     "message": "मूळ"
   },
+  "video_compatible": {
+    "message": "सर्वाधिक सुसंगत"
+  },
   "popup_video_hide_fullscreen": {
     "message": "पूर्ण स्क्रीनमध्ये डाउनलोड बटण लपवा"
   },
   "popup_video_hide_fullscreen_title": {
     "message": "पृष्ठ पूर्ण स्क्रीनमध्ये असताना, त्याच्या व्हिडिओंवर डाउनलोड व्हिडिओ बटण दिसत नाही"
+  },
+  "popup_remote_forget": {
+    "message": "विसरा"
   }
 }

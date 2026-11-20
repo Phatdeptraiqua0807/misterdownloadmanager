@@ -2,7 +2,7 @@
 //!
 //! Routes (every parameter is listed by `GET /`, [`HELP`]):
 //! - `GET|HEAD /gen/{size}[/{name}]?seed=N&<file params>&<faults>` — deterministic content (see
-//!   `content`); the file params shape its headers (`cd`, `cdstar`, `inline`)
+//!   `content`); the file params shape its headers (`cd`, `cdstar`, `cdraw`, `inline`)
 //! - `POST /form/{size}[/{name}]?need=FIELD=VALUE[&see_other=1]&<as /gen>` — the same file, only
 //!   for a form post that carries `FIELD=VALUE`
 //! - `GET /files/{name}` — a real file from `--files DIR` (Range too; 404 without it): archives
@@ -15,6 +15,9 @@
 //!   to `URL` (cross-host redirects, credential scoping); with `ttl_ms` the target gets
 //!   `expires=<unix ms>` and answers 403 after it (signed CDN links); with `uses` it is a link of
 //!   its own that answers 403 after N requests (a link that expires however slow the machine)
+//! - `GET /gen/…?lasts_ms=N&link=ID` — a signed link timed from its first request: every address
+//!   with this `link` answers 403 once N ms have passed since the first of them was asked (a
+//!   look-up's addresses expire together, however late the download starts)
 //! - `GET /hop?to=URL&how=meta|header[&wait=S][&cookie=N=V]` — a page that sends the browser on to
 //!   `URL` itself (`<meta http-equiv="refresh">` or a `Refresh` header), as download sites' waiting pages do
 //! - `GET /page`, `/formpage`, `/cookie`, `/assets/*` — web pages for the browser tests (`pages`)
@@ -55,7 +58,7 @@ use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 
 use crate::content;
-use crate::faults::{Faults, every, has_cookie, parse_flag};
+use crate::faults::{CLEARANCE, Faults, challenge_page, every, has_cookie, parse_flag};
 use crate::{debrid, drive, mediafire, pages, rapidgator, streams};
 
 const CHUNK: u64 = 64 * 1024;
@@ -267,6 +270,8 @@ pub(crate) struct Shared {
     used_once: Mutex<HashSet<String>>,
     /// Requests each signed link with `uses` has served (path and query).
     link_uses: Mutex<HashMap<String, u64>>,
+    /// The first request of each link with `lasts_ms` (its `link`, else path and query), unix ms.
+    link_first: Mutex<HashMap<String, u64>>,
     conn_reqs: Mutex<HashMap<SocketAddr, u64>>,
     /// Each client's `max_conns` slots in use.
     active: Mutex<HashMap<IpAddr, Vec<Arc<SlotUse>>>>,
@@ -408,6 +413,7 @@ impl LabServer {
             seq: AtomicU64::new(0),
             used_once: Mutex::default(),
             link_uses: Mutex::default(),
+            link_first: Mutex::default(),
             conn_reqs: Mutex::default(),
             active: Mutex::default(),
             log: Mutex::default(),
@@ -726,6 +732,8 @@ GET|HEAD /gen/{size}[/{name}]?seed=N&<file params>&<faults>   size: 12345, 64K, 
     cd=NAME        Content-Disposition: attachment; filename="NAME" (whatever the path's name;
                    UTF-8 is sent raw, as many servers do)
     cdstar=NAME    attachment; filename="fallback-name.zip"; filename*=UTF-8''<NAME %-encoded>
+    cdraw=VALUE    Content-Disposition: VALUE, exactly as given (a name the way a server wrote
+                   it: only filename*, %-encoded or RFC 2047 in filename=, #1427)
     inline=1       Content-Disposition: inline (filename: cdstar, cd or the path's name) and the
                    name's real Content-Type (.pdf application/pdf, .mp3 audio/mpeg, .mp4
                    video/mp4, ...): a browser displays or plays it
@@ -735,6 +743,9 @@ GET|HEAD /gen/{size}[/{name}]?seed=N&<file params>&<faults>   size: 12345, 64K, 
     expires=UNIXMS 403 after that time (what /redirect?ttl_ms= adds)
     uses=N         403 once this path and query has served N requests (what /redirect?uses= adds,
                    with a link= of its own)
+    lasts_ms=N     403 once N ms have passed since this link's first request: every address with
+                   the same link=ID expires together (a look-up's), timed from the first of them
+                   asked, however late (without link=: this path and query's own)
     movie=MS       the file starts as an MP4 movie of MS ms does (an ftyp, a moov saying its
                    length and tracks, a mdat's header over the rest), for a reader of its header
                    (#1092); with tracks=av|v|a (default av: a picture and a sound) and height=PX
@@ -748,7 +759,11 @@ GET|HEAD /gen/{size}[/{name}]?seed=N&<file params>&<faults>   size: 12345, 64K, 
     html_after=N   the first N requests for this path and query get the file, every later one
                    the page (as html=1 with html_type and html_cd): a link that leads to a
                    waiting page once the download is resumed; vary seed= for a fresh link
-    node=N         another server's copy of the same file: its own ETag and date
+    html_body=challenge|json|text  with html=1 or html_after=N: a bot check's script page
+                   (text/html), a JSON error (application/json) or a line of text (text/plain)
+                   instead of the waiting page: a one-time link asked a second time (#1460)
+    html_chunked=1 with html=1 or html_after=N: the page chunked, without a Content-Length
+    node=N        another server's copy of the same file: its own ETag and date
     etag=weak|per-request|none latency_ms=N range_latency_ms=N (only requests with a Range)
     range_rate=SIZE  the rate of answers to requests with a Range (instead of rate)
     burst=SIZE     with a rate, a link: a response the client stopped reading catches up with
@@ -766,6 +781,13 @@ GET|HEAD /gen/{size}[/{name}]?seed=N&<file params>&<faults>   size: 12345, 64K, 
                    request carries a browser's Sec-Fetch-Mode header and, over HTTPS (--tls),
                    came on a TLS handshake with GREASE, as Chrome's has (#668)
     refuse_programs=STATUS  the same check answering STATUS, empty (FileHippo's 412, #630)
+    refuse_browsers=1  a bot check that refuses whatever claims to be a browser (a User-Agent with
+                   Mozilla/) on any connection, the browser-like one too, and lets programs that
+                   say what they are through: 403 with cf-mitigated: challenge (SourceForge's, #1422)
+    js_challenge=MS  a bot check passed by running its script (Cloudflare's "Just a moment...",
+                   #1494): 403 with cf-mitigated: challenge and a page whose script, after MS ms,
+                   sets the cookie mdm_lab_clearance=1 and loads the address again; with that
+                   cookie, the file
     refuse_ranges=STATUS    every request with a Range answered with STATUS (the whole file
                    still served): with browser_only=1, a site that lets the browser-like
                    connection download a file only whole (#668)
@@ -1375,8 +1397,14 @@ struct FileQuery {
     expires: Option<u64>,
     /// The requests a signed link serves (`link` tells the links apart).
     uses: Option<u64>,
+    /// How long a signed link lasts from its first request, ms (`link` makes its addresses one).
+    lasts_ms: Option<u64>,
+    /// `link`: which signed link this address is part of.
+    link: Option<String>,
     cd: Option<String>,
     cdstar: Option<String>,
+    /// `cdraw`: the whole `Content-Disposition` value, sent as given (#1427).
+    cd_raw: Option<String>,
     disposition: Disposition,
     /// `type`: the Content-Type sent instead of the name's (`none`: none at all).
     content_type: Option<String>,
@@ -1467,7 +1495,18 @@ pub(crate) async fn serve(
         *n += 1;
         *n > uses
     });
-    if used_up || q.expires.is_some_and(|t| unix_ms() > t) {
+    // Timed from the link's first request, not from when it was made: a download's first request
+    // may come late on a busy computer, and a link that is dead before it is asked tests nothing.
+    let lapsed = q.lasts_ms.is_some_and(|lasts| {
+        let key = match &q.link {
+            Some(link) => format!("link:{link}"),
+            None => format!("{}?{query}", entry.path),
+        };
+        let mut first = shared.link_first.lock().unwrap();
+        let at = *first.entry(key).or_insert_with(unix_ms);
+        unix_ms() > at + lasts
+    });
+    if used_up || lapsed || q.expires.is_some_and(|t| unix_ms() > t) {
         shared.record(entry, 403, "expired");
         return (StatusCode::FORBIDDEN, "link expired\n").into_response();
     }
@@ -1483,15 +1522,45 @@ pub(crate) async fn serve(
         shared.record(entry, status.as_u16(), "fault:refuse_programs");
         return (status, [(header::RETRY_AFTER, "0")]).into_response();
     }
-    if f.browser_only == Some(true) && a_program {
-        shared.record(entry, 403, "fault:browser_only");
-        return (
+    let challenge = || {
+        (
             StatusCode::FORBIDDEN,
             [
                 ("cf-mitigated", "challenge"),
                 ("content-type", "text/html; charset=UTF-8"),
             ],
             "<!DOCTYPE html><title>Just a moment...</title>\n",
+        )
+            .into_response()
+    };
+    if f.browser_only == Some(true) && a_program {
+        shared.record(entry, 403, "fault:browser_only");
+        return challenge();
+    }
+    // SourceForge's (#1422): a browser's name on whatever connection, refused.
+    if f.refuse_browsers == Some(true)
+        && entry
+            .user_agent
+            .as_deref()
+            .is_some_and(|ua| ua.contains("Mozilla/"))
+    {
+        shared.record(entry, 403, "fault:refuse_browsers");
+        return challenge();
+    }
+    // A challenge a browser passes by running its script (#1494), whatever the connection: a
+    // program that runs none never gets the cookie it sets.
+    if let Some(wait) = f.js_challenge
+        && !has_cookie(entry.cookie.as_deref(), CLEARANCE)
+    {
+        shared.record(entry, 403, "fault:js_challenge");
+        return (
+            StatusCode::FORBIDDEN,
+            [
+                ("cf-mitigated", "challenge"),
+                ("content-type", "text/html; charset=UTF-8"),
+                ("cache-control", "no-store"),
+            ],
+            challenge_page(wait),
         )
             .into_response();
     }
@@ -1715,18 +1784,37 @@ pub(crate) async fn serve(
 /// `html=1`'s page: a sign-in wall, or (with `html_type` or `html_cd`) a file host's waiting page
 /// as it comes, its blank lines first (#701).
 fn web_page(f: &Faults, name: Option<&str>, size: u64) -> Response {
-    if f.html_type.is_none() && f.html_cd != Some(true) {
-        return (
-            [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
-            "<!doctype html><title>Sign in</title><form>Please sign in</form>\n",
-        )
-            .into_response();
+    // #1460: a one-time link's host's answer to a second request, instead of a page.
+    let other = match f.html_body.as_deref() {
+        Some("challenge") => Some((
+            "text/html; charset=utf-8",
+            "<html><script>var arg1='5C95CC7557DB4053192CC0CE9891F2B874A9E345';\
+             document.cookie='acw_sc__v2='+arg1;location.reload();</script></html>",
+        )),
+        Some("json") => Some((
+            "application/json",
+            "{\"zt\":0,\"info\":\"\\u94fe\\u63a5\\u5df2\\u5931\\u6548\"}",
+        )),
+        Some("text") => Some(("text/plain; charset=utf-8", "Access denied\n")),
+        _ => None,
+    };
+    if other.is_none() && f.html_type.is_none() && f.html_cd != Some(true) {
+        return page_body(
+            Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, "text/html; charset=utf-8"),
+            "<!doctype html><title>Sign in</title><form>Please sign in</form>\n".to_owned(),
+            f,
+        );
     }
     let mut builder = Response::builder().status(StatusCode::OK);
     match f.html_type.as_deref() {
         Some("none") => {}
         Some(t) => builder = builder.header(header::CONTENT_TYPE, t),
-        None => builder = builder.header(header::CONTENT_TYPE, "text/html; charset=utf-8"),
+        None => {
+            let t = other.map_or("text/html; charset=utf-8", |(t, _)| t);
+            builder = builder.header(header::CONTENT_TYPE, t);
+        }
     }
     if f.html_cd == Some(true) {
         let name = name.unwrap_or("file.zip").replace(['"', '\\'], "_");
@@ -1734,6 +1822,9 @@ fn web_page(f: &Faults, name: Option<&str>, size: u64) -> Response {
             header::CONTENT_DISPOSITION,
             format!("attachment; filename=\"{name}\""),
         );
+    }
+    if let Some((_, body)) = other {
+        return page_body(builder, body.to_owned(), f);
     }
     let mut page = String::from(
         "\r\n\r\n<!DOCTYPE html>\n<html><head><title>Your file is almost ready</title></head>\
@@ -1747,6 +1838,16 @@ fn web_page(f: &Faults, name: Option<&str>, size: u64) -> Response {
         page.push_str("<!--");
         page.push_str(&" ".repeat(want - page.len() - 8));
         page.push_str("-->\n");
+    }
+    page_body(builder, page, f)
+}
+
+/// `web_page`'s answer with `page` as its body: with its length, or chunked without one
+/// (`html_chunked`).
+fn page_body(builder: axum::http::response::Builder, page: String, f: &Faults) -> Response {
+    if f.html_chunked == Some(true) {
+        let chunks = futures::stream::iter([Ok::<_, std::io::Error>(bytes::Bytes::from(page))]);
+        return builder.body(Body::from_stream(chunks)).unwrap();
     }
     builder.body(Body::from(page)).unwrap()
 }
@@ -1768,6 +1869,9 @@ const ATTR_CHAR: &AsciiSet = &NON_ALPHANUMERIC
 
 /// The `Content-Disposition` of a generated file; `path_name` is the name in its path.
 fn content_disposition(q: &FileQuery, path_name: Option<&str>) -> Option<String> {
+    if let Some(raw) = &q.cd_raw {
+        return Some(raw.clone());
+    }
     let kind = match q.disposition {
         Disposition::Attachment => "attachment",
         Disposition::Inline => "inline",
@@ -1825,8 +1929,11 @@ fn split_query(q: &str) -> Result<FileQuery, String> {
         seed: 0,
         expires: None,
         uses: None,
+        lasts_ms: None,
+        link: None,
         cd: None,
         cdstar: None,
+        cd_raw: None,
         disposition: Disposition::Attachment,
         content_type: None,
         magic: None,
@@ -1848,8 +1955,12 @@ fn split_query(q: &str) -> Result<FileQuery, String> {
                 out.expires = Some(v.parse().map_err(|_| format!("invalid expires `{v}`\n"))?)
             }
             "uses" => out.uses = Some(v.parse().map_err(|_| format!("invalid uses `{v}`\n"))?),
+            "lasts_ms" => {
+                out.lasts_ms = Some(v.parse().map_err(|_| format!("invalid lasts_ms `{v}`\n"))?)
+            }
+            "link" => out.link = Some(v),
             // A page's own keys for a server's program (`script`): they change nothing here.
-            "link" | "id" | "file" | "filename" | "token" => {}
+            "id" | "file" | "filename" | "token" => {}
             // A CloudFront signed address's own keys (#1087): they change nothing here.
             "Expires" | "Signature" | "Key-Pair-Id" | "Policy" => {}
             "type" => out.content_type = name(&k, v)?,
@@ -1879,6 +1990,7 @@ fn split_query(q: &str) -> Result<FileQuery, String> {
             }
             "cd" => out.cd = name(&k, v)?,
             "cdstar" => out.cdstar = name(&k, v)?,
+            "cdraw" => out.cd_raw = name(&k, v)?,
             "inline" => {
                 out.disposition = match (v.as_str(), parse_flag(&v)) {
                     ("bare" | "none", _) => Disposition::Bare,
@@ -2051,6 +2163,14 @@ mod tests {
         assert!(content_disposition(&split_query("inline=bare").unwrap(), Some("a.pdf")).is_none());
         assert!(split_query("inline=maybe").is_err());
         assert!(split_query("cd=a%0Ab").is_err());
+        // #1427: a value as a server wrote it, sent as given.
+        let raw = "attachment; filename=\"My%20Report.pdf\"";
+        let q = split_query(&format!(
+            "cdraw={}",
+            utf8_percent_encode(raw, NON_ALPHANUMERIC)
+        ))
+        .unwrap();
+        assert_eq!(content_disposition(&q, Some("x.bin")).unwrap(), raw);
         // A CloudFront signed address's keys (#1087) change nothing; a type is sent as asked.
         let q = split_query(
             "inline=bare&type=binary/octet-stream&Expires=1&Signature=a~b&Key-Pair-Id=K",

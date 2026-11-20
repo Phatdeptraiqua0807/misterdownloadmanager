@@ -11,6 +11,11 @@
 #. {n} = a number (keep the braces as they are)
 #, machine
 @plural	An unknown site wants to send {n} link to Link grabber.|An unknown site wants to send {n} links to Link grabber.	يريد موقع غير معروف إرسال {n} رابط إلى ملتقط الروابط.|يريد موقع غير معروف إرسال {n} رابط إلى ملتقط الروابط.|يريد موقع غير معروف إرسال {n} رابطين إلى ملتقط الروابط.|يريد موقع غير معروف إرسال {n} روابط إلى ملتقط الروابط.|يريد موقع غير معروف إرسال {n} رابطا إلى ملتقط الروابط.|يريد موقع غير معروف إرسال {n} رابط إلى ملتقط الروابط.
+#. count in torrent downloads
+#. number of additional files in a list of files
+#. {n} = a number (keep the braces as they are)
+#, machine
+@plural	And {n} other file.|And {n} other files.	و{n} ملف آخر|و{n} ملف آخر|و{n} ملفين آخرين|و{n} ملفات أخرى|و{n} ملفا آخر|و{n} ملف آخر
 #. count in a dialog box
 #. never shown for a single download
 #. {n} = a number (keep the braces as they are)
@@ -214,6 +219,10 @@
 #. a torrent through a debrid service: one of its files has a name that would be written outside its folder; nothing was written. {name} the file's name as the service gave it
 #. {name} = a file name (keep the braces as they are)
 	A file of this torrent can't be saved safely: {name}	لا يمكن حفظ ملف هذا التورنت بأمان: {name}
+#. text in a dialog box
+#. the question about a name typed in Save As, above the file's path; the choices are the duplicate question's (numbered name, overwrite)
+#, machine
+	A file with this name is already there:	يوجد ملف بهذا الاسم بالفعل:
 #. message or event log entry in the main window
 #. Link grabber added a magnet link whose torrent could not be found; {error} says why
 #. {error} = an error message (keep the braces as they are)
@@ -241,6 +250,10 @@
 #. tooltip on the disabled Rename box for a single-file torrent
 #, machine
 	A single-file torrent keeps its name	يحتفظ التورنت ذو الملف الواحد باسمه
+#. text in torrent_ownership.rs
+#. a torrent's folder is a link or junction leading outside its destination
+#, machine
+	A torrent file's folder points outside its destination	مجلد داخل التورنت يشير إلى موقع خارج وجهته
 #. text in the Add torrent window
 #. Add trackers: MDM never contacts a tracker on this computer or the local network
 	A tracker on this computer or the local network is never contacted: {line}	لا يتصل MDM أبدا بمتتبع على هذا الكمبيوتر أو الشبكة المحلية: {line}
@@ -467,6 +480,14 @@
 #. Options → Connection → DNS: a DNS server the user types in
 #. the trailing ... means it is still going on: keep it
 	Another DNS...	خادم DNS آخر...
+#. text in torrent downloads
+#. starting a torrent whose destination another listed download claims
+#, machine
+	Another download already claims this torrent's destination	هناك تنزيل آخر يستخدم بالفعل وجهة هذا التورنت
+#. message or event log entry in the main window; text in the Add torrent window
+#. said when a torrent would write a file another download in the list already uses; {file} is its path
+#, machine
+	Another download already claims {file}. Choose a different destination.	هناك تنزيل آخر يستخدم {file} بالفعل. اختر وجهة مختلفة.
 #. text in unix.rs
 #. the Scheduler, under "Wake the computer to run this queue" (Linux): the computer's one wake alarm is already set by something else
 	Another program has set the computer's wake alarm	ضبط برنامج آخر منبه إيقاظ الكمبيوتر
@@ -960,6 +981,10 @@
 #. in a download's log: {name} is the archive's file name, {why} the reason
 #. {name} = a file name (keep the braces as they are)
 	Couldn't extract {name}: {why}	تعذر استخراج {name}: {why}
+#. checkbox in the Add torrent window
+#. Add torrent: keep a multi-file torrent inside its own outer folder; untick to use Save to directly
+#, machine
+	Create a folder for this torrent	إنشاء مجلد لهذا التورنت
 #. window title in a dialog box
 	Create folder	إنشاء مجلد
 #. text in countries.rs
@@ -1015,7 +1040,7 @@
 	Default download settings	إعدادات التنزيل الافتراضية
 #. text in the Options window
 	Default max. conn. number	الحد الأقصى الافتراضي لعدد الاتصالات
-#. text in the main window's messages (deleting downloads' files); button in a dialog box; button in the Options window; button in rssdlg.rs
+#. text in the main window's messages (deleting downloads' files); button in a dialog box; button in the Options window; button in rssdlg.rs; text in torrent downloads
 #. button: deletes the category
 #. verb: delete the item
 	Delete	حذف
@@ -1198,6 +1223,11 @@
 #. message or event log entry in the main window
 	Downloading again from the start	قيد التنزيل مرة أخرى من البداية
 #. text in the Download video window
+#. in Download video: MDM downloads Deno (a program's name) and checks it against its published checksum
+#. the trailing ... means it is still going on: keep it
+#, machine
+	Downloading and verifying Deno (about 40 MB)...	قيد تنزيل Deno والتحقق منه (حوالي 40 ميغابايت)...
+#. text in the Download video window
 #. the trailing ... means it is still going on: keep it
 	Downloading and verifying ffmpeg (about 80 MB)...	قيد تنزيل ffmpeg والتحقق منه (حوالي 80 ميغابايت)...
 #. text in gallerydlg.rs
@@ -1263,12 +1293,13 @@
 #. message or event log entry in the main window
 #. in Import, where the addresses came from: dragged onto the window
 	Dropped links	روابط مفلتة
-#. window title in a dialog box
+#. text in a dialog box
+#. window title: the question asked when an address added is already in the list of downloads
 	Duplicate download link	رابط تنزيل مكرر
 #. text in the Options window
 #. Options → Network adapter: what "Any" means
 	Each connection takes the system's route.	يتخذ كل اتصال مسار النظام.
-#. text in the Link grabber window
+#. text in the Batch download window; text in the Link grabber window
 #. Link grabber, in the empty "Save to" box: each file goes to its category's folder (Options → Save to)
 	Each file's category folder	مجلد فئة كل ملف
 #. text in countries.rs
@@ -1448,6 +1479,10 @@
 #. text in a download's progress window; text in a download's Properties window
 #. noun: a file of no known type
 	File	ملف
+#. text in a dialog box
+#. window title: the question asked when the name typed in Download File Info's Save As is a file already there
+#, machine
+	File already exists	الملف موجود بالفعل
 #. text in the Options window
 #. tooltip of "Mark downloaded files as coming from the internet" on Linux
 #, machine
@@ -1837,6 +1872,10 @@
 #. in the "7-Zip needed" window, under why
 	Install 7-Zip (free), then right-click the download and choose Extract.	ثبت 7-Zip (مجاني)، ثم انقر بزر الماوس الأيمن فوق التنزيل واختر استخراج.
 #. text in the Download video window
+#. button in Download video: download and install Deno, the JavaScript runtime YouTube needs (Deno is a program's name)
+#, machine
+	Install Deno	تثبيت Deno
+#. text in the Download video window
 #. button: download and install the ffmpeg program
 	Install ffmpeg	تثبيت ffmpeg
 #. button in gallerydlg.rs
@@ -1948,6 +1987,10 @@
 #. text in countries.rs
 #. a country's name (where a download's server is)
 	Japan	اليابان
+#. text in helpers.rs
+#. Video helpers: the row of the JavaScript runtime yt-dlp needs for YouTube (Deno is a program's name)
+#, machine
+	JavaScript runtime (Deno)	وقت تشغيل JavaScript (Deno)
 #. text in countries.rs
 #. a country's name (where a download's server is)
 	Jersey	جيرزي
@@ -2041,6 +2084,10 @@
 #. Options → Remote check box (off by default)
 #, machine
 	Let phones and computers on the local network control MDM	السماح للهواتف وأجهزة الكمبيوتر على الشبكة المحلية بالتحكم في MDM
+#. text in helpers.rs
+#. Video helpers: what the JavaScript runtime is for, after its name (yt-dlp is a program's name)
+#, machine
+	lets yt-dlp list all of YouTube's qualities	يسمح لـ yt-dlp بسرد جميع مستويات جودة YouTube
 #. option (radio button) in the Batch download window
 #. the * in the address runs through letters
 	Letters	أحرف
@@ -2245,6 +2292,10 @@
 #. remote control page (on a phone): an action failed
 #, machine
 	MDM could not do it.	تعذر على MDM القيام بذلك.
+#. text in torrent downloads
+#. question before starting/resuming a torrent that would modify files MDM did not create; Yes authorizes writes, No leaves files unchanged
+#, machine
+	MDM didn't create these files. Starting the torrent can resize them and replace their contents, including unticked files that share pieces. Use them for this torrent?	لم ينشئ MDM هذه الملفات. قد يؤدي بدء التورنت إلى تغيير حجمها واستبدال محتواها، بما في ذلك الملفات غير المحددة التي تشترك في الأجزاء. هل تريد استخدامها لهذا التورنت؟
 #. text in remote.rs
 #. remote control page (on a phone): MDM can't be reached while pairing
 #, machine
@@ -2254,6 +2305,10 @@
 #. the trailing ... means it is still going on: keep it
 #, machine
 	MDM does not answer. Trying again...	MDM لا يستجيب. تتم المحاولة مرة أخرى...
+#. text in helpers.rs
+#. Video helpers: MDM can't download Deno on this system (32-bit Windows, an unusual processor); Deno and Node.js are program names
+#, machine
+	MDM has no copy for this system: install Deno or Node.js	لا تتوفر نسخة من MDM لهذا النظام: ثبت Deno أو Node.js
 #. text in helpers.rs
 #. Video helpers: MDM can't download this helper on this Windows (ffmpeg on 32-bit Windows); "Use another program" is the button below
 #, machine
@@ -2370,6 +2425,14 @@
 #. text in countries.rs
 #. a country's name (where a download's server is)
 	Morocco	المغرب
+#. text in playlistdlg.rs
+#. a quality in Download video for a whole playlist: each video's best H.264 video with AAC sound, an MP4 that every video editor, TV and phone plays; keep "(H.264 + AAC)" as it is
+#, machine
+	Most compatible (H.264 + AAC)	الأكثر توافقا (H.264 + AAC)
+#. text in the Download video window
+#. a choice in the Download video window: the best H.264 video with AAC sound, an MP4 that every video editor, TV and phone plays; keep "(H.264 + AAC)" as it is; {height} is the resolution (1080p)
+#, machine
+	Most compatible (H.264 + AAC) · {height}	الأكثر توافقا (H.264 + AAC) · {height}
 #. button in a download's Properties window
 #. verb: move the file to another folder
 	Move	نقل
@@ -3022,6 +3085,11 @@
 #. event log entry: Recheck failed, with the reason
 #. {error} = an error message (keep the braces as they are)
 	Recheck failed: {error}	فشل إعادة التحقق: {error}
+#. text in a download's progress window
+#. a live stream's status: yt-dlp records it (it shows no progress, only the size so far)
+#. the trailing ... means it is still going on: keep it
+#, machine
+	Recording...	جارٍ التسجيل...
 #. message or event log entry in the main window
 #. window title, verb: download the file again from the start
 	Redownload	إعادة التنزيل
@@ -3177,7 +3245,8 @@
 	Save To...	حفظ في...
 #. text in a download's progress window; text in a download's Properties window
 	Save To:	حفظ في:
-#. text in the Link grabber window; text in rssdlg.rs
+#. text in the Batch download window; text in the Link grabber window; text in rssdlg.rs
+#. Batch download: the folder every file goes to (a label before its box)
 #. Link grabber: the folder the package's files go to (a label before its box)
 #. RSS feeds window, Download rules: the folder the rule's torrents go to
 	Save to:	حفظ في:
@@ -3189,6 +3258,11 @@
 #. label over the folder the downloads were saved in
 #. label before the folder the torrent is saved in
 	Saved in	محفوظ في
+#. text in a download's progress window
+#. a live stream's status: stopped, and what was recorded being made into the video file kept
+#. the trailing ... means it is still going on: keep it
+#, machine
+	Saving...	جارٍ الحفظ...
 #. tab in the Scheduler window
 #. noun: tab title; when the queue starts and stops
 	Schedule	جدولة
@@ -3575,6 +3649,10 @@
 #. text in remote.rs; text in the Add torrent window
 #. remote control page (on a phone): button: stop a queue
 	Stop	إيقاف
+#. text in a download's progress window
+#. button in a live stream's progress window: stop recording it and keep what was recorded as a video file
+#, machine
+	Stop and save	إيقاف وحفظ
 #. text in the Scheduler window; checkbox in the Scheduler window
 	Stop download at	إيقاف التنزيل عند
 #. text in playlistdlg.rs
@@ -3778,6 +3856,10 @@
 	the connection to {host} was cut: a firewall, or a network that blocks it	انقطع الاتصال بـ{host}: قد يكون السبب جدار حماية أو شبكة تمنع الاتصال
 #. text in errors.rs
 	the connection was lost while receiving data	انقطع الاتصال أثناء استلام البيانات
+#. text in torrent downloads
+#. files kept appearing while the user was confirming a torrent start; stop rather than repeat questions indefinitely
+#, machine
+	The destination keeps changing. Stop changes to its files and try starting the torrent again.	الوجهة تتغير باستمرار. أوقف التغييرات على ملفاتها ثم حاول بدء التورنت مرة أخرى.
 #. text in the Add torrent window
 #. a magnet link's lookup, after 30 seconds: the DHT got no answer from anyone
 	The DHT reached no one. A firewall, a VPN or the network may be blocking UDP, which the DHT and most trackers use.	لم يصل DHT إلى أي جهاز. قد يمنع جدار حماية أو VPN أو الشبكة UDP، الذي يستخدمه DHT ومعظم المتتبعات.
@@ -3854,6 +3936,10 @@
 #. message or event log entry in the main window
 #. {error} = an error message (keep the braces as they are)
 	The files could not be chosen: {error}	تعذر اختيار الملفات: {error}
+#. text in torrent downloads
+#. error when deleting a torrent added by an older MDM that saved no record of its files: they stay on the disk
+#, machine
+	The files were kept because this older download has no ownership record	تم الإبقاء على الملفات لأن هذا التنزيل القديم ليس له سجل ملكية
 #. text in a dialog box
 #. {error} = an error message (keep the braces as they are)
 	The folder could not be created: {error}	تعذر إنشاء المجلد: {error}
@@ -3882,6 +3968,10 @@
 #. text in errors.rs; text in torrent downloads
 #. an error: the network adapter chosen in Options (a VPN's, usually) is off or gone; {adapter} its name
 	the network adapter {adapter} is not connected	محول الشبكة {adapter} غير متصل
+#. text in torrent_ownership.rs
+#. error when a torrent's output folder path cannot be used
+#, machine
+	The output folder is invalid	مجلد الإخراج غير صالح
 #. text in extracting archives (a download's log, the Archive password window)
 #. why an archive wasn't extracted (after "Couldn't extract {name}: ")
 	the password is wrong	كلمة المرور خاطئة
@@ -3905,6 +3995,14 @@
 	The report is on your clipboard.	التقرير موجود في حافظتك.
 #. text in crashui.rs
 	The report is on your clipboard: paste it in a comment on the issue.	التقرير موجود في حافظتك: الصقه في تعليق على المشكلة.
+#. text in torrent downloads
+#. error when deleting a torrent: the .torrent file MDM kept is another torrent's
+#, machine
+	The saved .torrent file does not match this download	ملف .torrent المحفوظ لا يطابق هذا التنزيل
+#. text in torrent downloads
+#. starting an old torrent whose cached metadata was lost; re-adding can restore it without deleting data
+#, machine
+	The saved .torrent file is missing or unreadable. Add the torrent again to recover its metadata; keep its existing files.	ملف .torrent المحفوظ مفقود أو غير قابل للقراءة. أضف التورنت مرة أخرى لاستعادة بياناته الوصفية مع الإبقاء على ملفاته الحالية.
 #. text in errors.rs
 #. an FTPS (or other TLS) connection could not be secured
 	the secure connection failed	فشل الاتصال الآمن
@@ -3928,6 +4026,11 @@
 	the server is busy ({status}); try again later	الخادم مشغول ({status})؛ حاول مرة أخرى لاحقا
 #. text in errors.rs
 	the server sent an unexpected part of the file ({detail})	أرسل الخادم جزءا غير متوقع من الملف ({detail})
+#. text in errors.rs
+#. why a download failed (#1460): the browser's own download of the link was a file of {size} (such as 117.65 MB), but when MDM asked the server for it, it sent only {sent} (such as 4.65 KB): an error or a notice, not the file. Some links work only once, or only in the browser. Alt+click: the link clicked with the Alt key held, which leaves the download to the browser
+#. {size} = a file size such as "4.2 MB" (keep the braces as they are)
+#, machine
+	the server sent only {sent} where the browser's file is {size} (a link that works once, or only in the browser): Alt+click the link to let the browser download it	أرسل الخادم {sent} فقط بينما ملف المستعرض هو {size} (رابط يعمل مرة واحدة، أو في المستعرض فقط): Alt+انقر فوق الرابط للسماح للمستعرض بتنزيله
 #. text in debrid.rs
 #. Options → Accounts: the service doesn't say whether the account is premium (Mega-Debrid, signed in with an API key); a free account's links are refused when downloading
 #, machine
@@ -4004,6 +4107,23 @@
 #. text in torrent downloads
 #. an error: the torrent is gone from the torrent session
 	the torrent is no longer there	التورنت لم يعد موجودا
+#. text in torrent_ownership.rs
+#. unsafe path found in a saved torrent ownership record
+#. error when the saved record of a torrent's files holds a path that leaves its folder
+#, machine
+	The torrent ownership record contains an unsafe path	سجل ملكية التورنت يحتوي على مسار غير آمن
+#. text in torrent_ownership.rs
+#. error when the saved record of a torrent's files differs from the .torrent file
+#, machine
+	The torrent ownership record does not match its file list	سجل ملكية التورنت لا يطابق قائمة ملفاته
+#. text in torrent_ownership.rs
+#. error when the saved record of a torrent's files cannot be read as one
+#, machine
+	The torrent ownership record is invalid	سجل ملكية التورنت غير صالح
+#. text in torrent downloads
+#. the user refused write permission for existing files when starting a torrent
+#, machine
+	The torrent was not started because permission to use existing files was declined.	لم يبدأ التورنت لأنه تم رفض إذن استخدام الملفات الموجودة.
 #. message or event log entry in the main window
 #. {error} = an error message (keep the braces as they are)
 	The trackers could not be added: {error}	تعذر إضافة المتتبعات: {error}
@@ -4125,6 +4245,10 @@
 #. why "Embed chapters" is greyed: ffmpeg (a helper program) is not installed
 #. why "Put them into the video" is greyed: ffmpeg (a helper program) is not installed
 	This needs ffmpeg	يتطلب هذا ffmpeg
+#. text in the Add torrent window
+#. tooltip of the greyed "Create a folder for this torrent" checkbox: debrid downloads cannot use it
+#, machine
+	This option is available for direct BitTorrent downloads	هذا الخيار متاح لتنزيلات BitTorrent المباشرة
 #. text in the Options window
 #. Options → Accounts: a portable copy (it writes nothing outside its folder) keeps the sign-ins in its own settings, encrypted so that only this Windows account can read them
 	This portable copy keeps sign-ins and passwords in its own settings, encrypted for your Windows account.	تحتفظ هذه النسخة المحمولة ببيانات تسجيل الدخول وكلمات المرور في إعداداتها الخاصة، وهي مشفرة لحساب Windows الخاص بك.
@@ -4149,8 +4273,20 @@
 	this torrent has a file name that isn't safe to write, so it wasn't added: {name}	يحتوي هذا التورنت على اسم ملف غير آمن للكتابة، لذلك لم تتم إضافته: {name}
 #. text in the Add torrent window
 	This torrent is already in the download list	هذا التورنت موجود بالفعل في قائمة التنزيلات
+#. message or event log entry in the main window
+#. said when a torrent is added again while an action on the same torrent is still running
+#, machine
+	This torrent is busy. Wait for its current operation to finish before adding it again.	هذا التورنت مشغول. انتظر حتى تنتهي عمليته الحالية قبل إضافته مرة أخرى.
 #. text in errors.rs
 	this torrent is not in the list	هذا التورنت ليس في القائمة
+#. text in torrent_ownership.rs
+#. torrent start needs explicit write permission; {file} is the first existing file without a matching grant
+#, machine
+	This torrent needs permission to use {file} before it can start.	يحتاج هذا التورنت إلى إذن لاستخدام {file} قبل أن يبدأ.
+#. message or event log entry in the main window; text in a download's Properties window
+#. shown when Move or Rename is refused: a torrent saved straight in Save to shares that folder with other files
+#, machine
+	This torrent shares its destination folder	يشارك هذا التورنت مجلد وجهته مع ملفات أخرى
 #. text in the Download video window
 #. the Download video window: the page's video is copy-protected
 	This video is protected (DRM): no tool can save it.	هذا الفيديو محمي (DRM): لا يمكن لأي أداة حفظه.
@@ -4408,11 +4544,18 @@
 	Use authorization	استخدام التفويض
 #. text in the Options window
 	Use automatic configuration script	استخدام برنامج نصي للضبط التلقائي
+#. text in torrent downloads
+#, machine
+	Use existing torrent files	استخدام ملفات التورنت الموجودة
 #. checkbox in the Options window
 	Use FTP in PASV mode	استخدام FTP في وضع PASV
 #. button in helpers.rs
 #. Video helpers: button: go back to the copy MDM downloads and checks itself
 	Use MDM's own copy	استخدام نسخة MDM الخاصة
+#. checkbox in the Options window
+#. Options → Sites Logins: checkbox under Cookies for video sites: yt-dlp also reads the person's own yt-dlp config file
+#, machine
+	Use my yt-dlp config file	استخدام ملف إعدادات yt-dlp الخاص بي
 #. text in the Batch download window
 #. why Batch download's OK is greyed
 	Use one * only	استخدم نجمة واحدة فقط
@@ -4675,12 +4818,20 @@
 #. {version} = a version number (keep the braces as they are)
 	Your own program: {path} ({version})	البرنامج الخاص بك: {path} ({version})
 #. text in helpers.rs
+#. Video helpers: {path} = the computer's own JavaScript runtime (node.exe, deno.exe), used as it is: MDM needn't download one
+#, machine
+	Your system's, nothing to download: {path}	نسخة نظامك، لا شيء للتنزيل: {path}
+#. text in helpers.rs
 #. Video helpers: {path} = the system's yt-dlp, ffmpeg or gallery-dl
 	Your system's: {path}	نسخة نظامك: {path}
 #. text in the Download video window
 #. in Download video and the browser's video menu: yt-dlp had no JavaScript runtime, so YouTube listed only some qualities (often only the sound); Node.js and Deno are program names
 #, machine
 	YouTube needs a JavaScript runtime to list its video qualities: install Node.js or Deno, then look it up again	يحتاج YouTube إلى وقت تشغيل JavaScript لسرد جودات الفيديو: ثبت Node.js أو Deno، ثم ابحث عنه مرة أخرى
+#. text in the Options window
+#. Options → Sites Logins → Use my yt-dlp config file: its tooltip
+#, machine
+	yt-dlp also reads its own config files (on Windows %APPDATA%\\yt-dlp\\config.txt, on Linux and macOS ~/.config/yt-dlp/config). Most of what MDM chooses, the folder, the name and the quality, still wins, but options there that skip or filter videos apply too.	يقرأ yt-dlp أيضًا ملفات الإعدادات الخاصة به (في Windows: %APPDATA%\\yt-dlp\\config.txt، وفي Linux وmacOS: ~/.config/yt-dlp/config). يبقى معظم ما يختاره MDM، أي المجلد والاسم والجودة، هو المعتمد، لكن الخيارات الموجودة فيها التي تتخطى مقاطع الفيديو أو تصفّيها تُطبَّق أيضًا.
 #. text in the Download video window
 #. the Download video window: yt-dlp couldn't read the cookies of the browser chosen in Options (Chrome, Edge...), which holds them while it runs; {browser} = its name
 	yt-dlp can't read {browser}'s cookies while {browser} is open. Close {browser} and look the page up again, or choose Firefox in Options → Sites Logins.	لا يمكن لـ yt-dlp قراءة ملفات تعريف الارتباط الخاصة بـ {browser} أثناء فتح {browser}. أغلق {browser} وابحث عن الصفحة مرة أخرى، أو اختر Firefox في الخيارات ← تسجيلات دخول المواقع.
@@ -4780,8 +4931,9 @@
 #. text in a download's Properties window
 #. a kind of file, by its extension: {ext} = "ZIP", "PDF"…
 	{ext} File	ملف {ext}
-#. text in the main window's messages (deleting downloads' files)
+#. text in the main window's messages (deleting downloads' files); text in torrent downloads
 #. a message: a deleted download's file stayed on the disk; {file} = its name
+#. error dialog when a torrent's files could not be deleted; {file} is the download's name, {error} why
 #. {error} = an error message (keep the braces as they are)
 	{file} could not be deleted from the disk: {error}	تعذر حذف {file} من القرص: {error}
 #. text in a dialog box
@@ -4805,6 +4957,10 @@
 #. text in the Checksum window
 #. {algorithm} = a checksum algorithm such as "SHA-256" (keep the braces as they are)
 	{file}: the file matches its checksum ({algorithm})	{file}: الملف يطابق بصمته ({algorithm})
+#. text in torrent downloads
+#. said after Delete with files when some files stayed on the disk; {file} is the download's name; the files' paths follow it
+#, machine
+	{file}: these files stayed on the disk, because MDM didn't create them or another download uses them:	{file}: بقيت هذه الملفات على القرص لأن MDM لم ينشئها أو لأن تنزيلاً آخر يستخدمها:
 #. text in a download's progress window
 #. {have} and {total} = numbers of pieces; {size} = one piece's size
 #. {size} = a file size such as "4.2 MB" (keep the braces as they are)
@@ -5141,6 +5297,10 @@ extension	Drag the dots to move it along the edge	اسحب النقاط لتحر
 #, machine
 extension	Enter its https:// address.	أدخل عنوان https:// الخاص به.
 #. text in the browser extension
+#. button: forget / unpair this server
+#, machine
+extension	Forget	نسيان
+#. text in the browser extension
 #. button on the download button over a video when the app didn't answer: opens the app's download page; MDM is the app's short name, keep it; very short
 #, machine
 extension	Get MDM	احصل على MDM
@@ -5247,6 +5407,10 @@ extension	Mister Download Manager then downloads through the same proxy as this 
 #. text in the browser extension
 #. the small arrow next to the Download video button that opens its menu (read aloud by screen readers)
 extension	More options	المزيد من الخيارات
+#. text in the browser extension
+#. in the list under the download button over a video, after a quality's height (1080p): the H.264 video with AAC sound in an MP4, the file that plays in every video editor, TV and phone; short, about 20 characters at most
+#, machine
+extension	Most compatible	الأكثر توافقا
 #. text in the browser extension
 #. menu command of the download button over a video: never show the button on this web site again
 #. {site} = a web site's name such as "example.com" (keep the braces as they are)

@@ -91,6 +91,18 @@ async function native(message, ms = HOST_WAIT) {
 
 // ---- another MDM (#157): a server's, through its remote control ------------------------------
 
+// A list of all known paired servers: [{url, token}, ...]
+async function readRemotes() {
+  const { remotes, remote } = await ext.storage.local.get({ remotes: null, remote: null });
+  if (Array.isArray(remotes)) return remotes.filter((r) => r && r.url && r.token);
+  if (remote && remote.url && remote.token) {
+    const list = [remote];
+    await ext.storage.local.set({ remotes: list });
+    return list;
+  }
+  return [];
+}
+
 // {url, token} while downloads go to another MDM instead of this computer's, else null.
 async function remoteTarget() {
   const { remote } = await ext.storage.local.get({ remote: null });
@@ -129,7 +141,13 @@ async function remoteCall(base, path, body, token) {
 async function remoteSend(target, message) {
   const r = await remoteCall(target.url, "api/add", { url: message.url, start: true }, target.token);
   if (r.status === 200 && r.body && !r.body.error) return { ok: true };
-  if (r.status === 401) await ext.storage.local.set({ remote: null }); // unpaired there
+  if (r.status === 401) {
+    const list = await readRemotes();
+    const updated = list.filter((item) => !(item.url === target.url && item.token === target.token));
+    const { remote } = await ext.storage.local.get({ remote: null });
+    const nextRemote = remote && remote.url === target.url && remote.token === target.token ? null : remote;
+    await ext.storage.local.set({ remotes: updated, remote: nextRemote });
+  }
   return { ok: false, why: "refused" };
 }
 
@@ -151,7 +169,11 @@ async function remotePair(address, code) {
   const name = ext.i18n.getMessage("remote_device_name") || "Browser";
   const r = await remoteCall(base, "api/pair", { code: String(code), name }, null);
   if (r.status === 200 && r.body && typeof r.body.token === "string") {
-    await ext.storage.local.set({ remote: { url: base, token: r.body.token } });
+    const list = await readRemotes();
+    const updated = list.filter((item) => item.url !== base);
+    const item = { url: base, token: r.body.token };
+    updated.push(item);
+    await ext.storage.local.set({ remotes: updated, remote: item });
     await refreshRules();
     await showStatus();
     return { ok: true };
@@ -160,10 +182,35 @@ async function remotePair(address, code) {
   return { ok: false, why, left: r.body && r.body.left };
 }
 
-// Back to this computer: unpaired there too (when it answers).
-async function remoteOff() {
-  const target = await remoteTarget();
+// Switch active remote to a previously paired MDM at `url`.
+async function remoteSelect(url) {
+  const list = await readRemotes();
+  const target = list.find((item) => item.url === url);
+  if (target) {
+    await ext.storage.local.set({ remote: target });
+    await refreshRules();
+    await showStatus();
+    return { ok: true };
+  }
+  return { ok: false, why: "not-found" };
+}
+
+// Forget a paired MDM at `url`: unpair there (when it answers) and remove from remotes.
+async function remoteForget(url) {
+  const list = await readRemotes();
+  const target = list.find((item) => item.url === url);
   if (target) await remoteCall(target.url, "api/forget", {}, target.token);
+  const updated = list.filter((item) => item.url !== url);
+  const { remote } = await ext.storage.local.get({ remote: null });
+  const nextRemote = remote && remote.url === url ? null : remote;
+  await ext.storage.local.set({ remotes: updated, remote: nextRemote });
+  await refreshRules();
+  await showStatus();
+  return { ok: true };
+}
+
+// Back to this computer: active remote set to null without forgetting paired remotes.
+async function remoteOff() {
   await ext.storage.local.set({ remote: null });
   await refreshRules();
   await showStatus();
@@ -566,16 +613,22 @@ function firstUrl(item) {
 
 // Links clicked with Alt (Option on a Mac) held (page.js): the browser keeps their download. By
 // the link's address (the click's own download, the start of a redirect), and once per click the
-// download that follows it under another address in the next seconds (#332): one in the same
-// tab (Firefox says which tab a page load is in), or one whose referrer is the link or the page
-// it was on (a page's script that starts the download, a link to a page whose script does).
+// download that follows it under another address (#332): one whose referrer is the link's own
+// page (a bot check's page that sends to the file once its script ran, #1494), or, in the next
+// seconds, one in the same tab (Firefox says which tab a page load is in) or whose referrer is the
+// page the link was on (a page's script that starts the download, a link to a page whose script
+// does).
 const bypass = new Map(); // address -> {at, tab, page, used}
+// The page a link opens may be a site's bot check ("Just a moment...", Cloudflare's): its script
+// runs in the tab (some want a box ticked) before the file comes. The link's own address, and a
+// download its page starts, stay the browser's that long; anything else only BYPASS_MS.
+const BYPASS_CHECK_MS = 60000;
 const BYPASS_MS = 10000;
 
 // `clicked`: the download is a link the user just clicked without Alt (Safari's `link`), never
 // one that follows an Alt+click.
 function altClicked(item, url, first, clicked = false) {
-  forget(bypass, BYPASS_MS);
+  forget(bypass, BYPASS_CHECK_MS);
   const exact = [item.url, url, first].map((u) => u && bypass.get(u)).find(Boolean);
   if (exact) {
     exact.used = true;
@@ -583,15 +636,33 @@ function altClicked(item, url, first, clicked = false) {
   }
   if (clicked) return false;
   const ref = item.referrer || "";
+  const now = Date.now();
   for (const [link, b] of bypass) {
     if (b.used) continue;
-    const tab = Number.isInteger(item.tabId) && item.tabId >= 0 && item.tabId === b.tab;
-    if (tab || fromPage(ref, link) || fromPage(ref, b.page)) {
+    const soon = now - b.at <= BYPASS_MS;
+    const tab = soon && Number.isInteger(item.tabId) && item.tabId >= 0 && item.tabId === b.tab;
+    if (tab || linkPage(ref, link) || (soon && (fromPage(ref, link) || fromPage(ref, b.page)))) {
       b.used = true;
       return true;
     }
   }
   return false;
+}
+
+// Whether `ref` (a download's referrer) is the page at `link` itself: the same address, give or
+// take what its own script added to its query (Cloudflare's check puts its token there) and its
+// #part. Never only the site's address: that may be any of its pages.
+function linkPage(ref, link) {
+  if (!ref || !link) return false;
+  try {
+    const r = new URL(ref);
+    const l = new URL(link);
+    if (r.origin !== l.origin || r.pathname !== l.pathname) return false;
+    for (const [k, v] of l.searchParams) if (!r.searchParams.getAll(k).includes(v)) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Whether `ref` (a download's referrer) names `page`: the same address without its #part, or
@@ -774,9 +845,20 @@ function noteMaybe(d, found, sent) {
 function manifestKind(text) {
   const t = String(text).replace(/^﻿/, "").trimStart();
   if (t.startsWith("#EXTM3U")) return "hls";
-  // An XML declaration, comments, then the MPD element (with a namespace prefix or not).
-  if (/^(?:<\?xml[^>]*\?>\s*)?(?:<!--[\s\S]*?-->\s*)*<(?:[\w-]+:)?MPD[\s>/]/.test(t)) return "dash";
-  return "";
+  // An XML declaration, comments, then the MPD element (with a namespace prefix or not), read
+  // by a plain scan: each part is skipped once, whatever the text holds.
+  let rest = t;
+  if (rest.startsWith("<?xml")) {
+    const end = rest.indexOf("?>");
+    if (end < 0) return "";
+    rest = rest.slice(end + 2).trimStart();
+  }
+  while (rest.startsWith("<!--")) {
+    const end = rest.indexOf("-->", 4);
+    if (end < 0) return "";
+    rest = rest.slice(end + 3).trimStart();
+  }
+  return /^<(?:[\w-]+:)?MPD[\s>/]/.test(rest) ? "dash" : "";
 }
 
 // The start of a response (SNIFF_BYTES), fetched again with the site's cookies as `probe` does:
@@ -2391,7 +2473,7 @@ function dispositionName(cd) {
   const star = /filename\*\s*=\s*([\w-]+)'[^']*'([^;]+)/i.exec(cd);
   if (star) {
     try {
-      return decodeURIComponent(star[2].trim().replace(/^"|"$/g, ""));
+      return decodeURIComponent(escapedSeparators(star[2].trim().replace(/^"|"$/g, "")));
     } catch {
       // Not percent-encoded as it says: the plain name below.
     }
@@ -2401,16 +2483,92 @@ function dispositionName(cd) {
   return decodedPlain((plain[2] !== undefined ? plain[2].replace(/\\(.)/g, "$1") : plain[1]).trim());
 }
 
-// A plain `filename` as sent, or its percent-encoded UTF-8 decoded when that is what it holds
-// (non-ASCII once decoded: `100%25.txt` stays as it is), as the app reads it (naming.rs).
+// A plain `filename` as Chrome and Firefox read it (#1427), and the app (naming.rs
+// `decode_plain`): RFC 2047's encoded words (`=?UTF-8?B?…?=`) decoded, else its percent-encoding
+// whenever that decodes to UTF-8 (`My%20Report.pdf` is "My Report.pdf"), else as sent.
 function decodedPlain(name) {
+  const words = encodedWords(name);
+  if (words !== null) return words;
   if (!name.includes("%")) return name;
-  try {
-    const decoded = decodeURIComponent(name);
-    return /[^\x00-\x7f]/.test(decoded) ? decoded : name;
-  } catch {
-    return name; // not percent-encoded UTF-8
+  // Byte by byte, as the app: an escape that isn't one (`50%off`) stays as it is.
+  const bytes = new TextEncoder().encode(escapedSeparators(name));
+  const out = [];
+  for (let i = 0; i < bytes.length; i++) {
+    const hex = String.fromCharCode(bytes[i + 1] || 0, bytes[i + 2] || 0);
+    if (bytes[i] === 0x25 && /^[0-9a-f]{2}$/i.test(hex)) {
+      out.push(parseInt(hex, 16));
+      i += 2;
+    } else out.push(bytes[i]);
   }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(out));
+  } catch {
+    return name; // not UTF-8 once decoded
+  }
+}
+
+// A name's percent-encoded `/` and `\` as `_`, as Chrome and Firefox save them (naming.rs
+// `escaped_separators`): a character of the name, never a folder.
+function escapedSeparators(name) {
+  return name.replace(/%(2f|5c)/gi, "_");
+}
+
+// `name` with its RFC 2047 encoded words (`=?charset?B|Q?text?=`, UTF-8 or ISO-8859-1) decoded,
+// the space between two of them dropped; null when it has none, or one it can't read (naming.rs
+// `encoded_words`).
+function encodedWords(name) {
+  const word = /=\?([^?\s]+)\?([bq])\?([^?\s]*)\?=/gi;
+  let out = "";
+  let at = 0;
+  let any = false;
+  for (let m; (m = word.exec(name)); ) {
+    const text = wordText(m[1], m[2], m[3]);
+    if (text === null) return null;
+    const between = name.slice(at, m.index);
+    // Only space between two encoded words isn't the name's.
+    out += any && /^\s*$/.test(between) ? "" : between;
+    out += text;
+    at = m.index + m[0].length;
+    any = true;
+  }
+  return any ? out + name.slice(at) : null;
+}
+
+// An encoded word's text: its bytes base64 (B) or quoted-printable with `_` for a space (Q), in
+// UTF-8 or ISO-8859-1 (and US-ASCII); null for anything else.
+function wordText(charset, kind, text) {
+  let bytes;
+  if (kind.toLowerCase() === "b") {
+    try {
+      bytes = Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
+    } catch {
+      return null;
+    }
+  } else {
+    const out = [];
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === "_") out.push(0x20);
+      else if (text[i] === "=") {
+        const hex = text.slice(i + 1, i + 3);
+        if (!/^[0-9a-f]{2}$/i.test(hex)) return null;
+        out.push(parseInt(hex, 16));
+        i += 2;
+      } else if (text.charCodeAt(i) < 0x80) out.push(text.charCodeAt(i));
+      else return null;
+    }
+    bytes = Uint8Array.from(out);
+  }
+  // RFC 2231's language after a `*` (`UTF-8*en`) isn't the charset's.
+  const cs = charset.split("*")[0].toLowerCase();
+  if (cs === "utf-8" || cs === "utf8") {
+    try {
+      return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch {
+      return null;
+    }
+  }
+  if (["iso-8859-1", "iso_8859-1", "latin1", "us-ascii"].includes(cs)) return String.fromCharCode(...bytes);
+  return null;
 }
 
 // A response header's value as text. Firefox gives its bytes one character each (ISO-8859-1), so
@@ -2835,6 +2993,10 @@ function playingAt(x, y) {
 }
 
 const isYouTube = (url) => /(^|\.)(youtube\.com|youtube-nocookie\.com|youtu\.be)$/i.test(siteOf(url));
+const isDrive = (url) => /(^|\.)(?:drive|docs)\.google\.com$/i.test(siteOf(url));
+const isDriveFile = (url) =>
+  /\/file\/d\/[\w-]{25,}/.test(url) ||
+  (/\/(?:uc|open)\b/.test(url) && /[?&]id=[\w-]{25,}/.test(url));
 
 // The watch address of what the player at `at` (the video's middle, in the sender's frame) plays,
 // or "": a page without such a player, one too old for `world`, a page extensions may not read.
@@ -2877,6 +3039,11 @@ async function videoAddress(m, page, sender) {
   if (isYouTube(page)) {
     const playing = await playingVideo(sender, m.at);
     return playing || (isYouTube(named) ? named : "");
+  }
+  if (isDrive(page)) {
+    if (isDriveFile(named)) return named;
+    if (isDriveFile(page)) return page;
+    return "";
   }
   if (m.url === null) return "";
   return named && siteKey(named) === siteKey(page) ? named : page;
@@ -3016,6 +3183,28 @@ const beside = (tab) => ({
 async function pageMessage(m, sender) {
   const page = senderPage(sender);
   const tab = sender.tab || {};
+  // #758: on Google Drive, pointer movement inside a player's subframe informs the top frame
+  // so the floating button stays visible while hovering over the cross-origin player.
+  if (m.type === "drive-frame-pointer") {
+    const tabId = tab.id;
+    const tabUrl = tab.url || "";
+    const senderUrl = sender.url || "";
+    const isPlayer =
+      (/(^|\.)youtube\.googleapis\.com$/i.test(siteOf(senderUrl)) &&
+        (/[?&](?:driveid|docid)=/.test(senderUrl) || /[?&]ps=docs\b/.test(senderUrl))) ||
+      (isDrive(senderUrl) && (/\/file\/d\/[^/]+\/preview/.test(senderUrl) || /\/viewer\/main\b/.test(senderUrl)));
+    if (
+      Number.isInteger(tabId) &&
+      Number.isInteger(sender.frameId) &&
+      sender.frameId !== 0 &&
+      isDrive(tabUrl) &&
+      isPlayer
+    ) {
+      ext.tabs.sendMessage(tabId, { type: "drive-frame-pointer" }, { frameId: 0 }).catch(() => {});
+      return { ok: true };
+    }
+    return { ok: false };
+  }
   if (m.type === "panel") {
     const top = tab.url && /^https?:/i.test(tab.url) ? tab.url : "";
     return page ? await panelOn(page, top) : { on: false, compact: false };
@@ -3105,10 +3294,13 @@ async function popupMessage(m) {
     const s = await readStatus();
     const { declined } = await ext.storage.local.get({ declined: null });
     const remote = await remoteTarget();
-    if (remote) return { connected: true, why: null, remote: remote.url, version: VERSION, paused, declined };
-    return { connected: Boolean(r) && (!s.why || s.why === "update-app"), why: s.why, app: s.app, version: VERSION, paused, declined };
+    const remotes = (await readRemotes()).map((x) => x.url);
+    if (remote) return { connected: true, why: null, remote: remote.url, remotes, version: VERSION, paused, declined };
+    return { connected: Boolean(r) && (!s.why || s.why === "update-app"), why: s.why, app: s.app, remote: null, remotes, version: VERSION, paused, declined };
   }
   if (m.type === "remote-pair" && typeof m.url === "string" && typeof m.code === "string") return remotePair(m.url, m.code);
+  if (m.type === "remote-select" && typeof m.url === "string") return remoteSelect(m.url);
+  if (m.type === "remote-forget" && typeof m.url === "string") return remoteForget(m.url);
   if (m.type === "remote-off") return remoteOff();
   if (m.type === "pause") {
     await ext.storage.local.set({ paused: Boolean(m.paused) });

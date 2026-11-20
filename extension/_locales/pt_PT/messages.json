@@ -332,10 +332,16 @@
   "video_original": {
     "message": "original"
   },
+  "video_compatible": {
+    "message": "Mais compatível"
+  },
   "popup_video_hide_fullscreen": {
     "message": "Ocultar o botão de transferência em ecrã inteiro"
   },
   "popup_video_hide_fullscreen_title": {
     "message": "Enquanto a página estiver em ecrã inteiro, os vídeos não mostram o botão Transferir vídeo"
+  },
+  "popup_remote_forget": {
+    "message": "Esquecer"
   }
 }

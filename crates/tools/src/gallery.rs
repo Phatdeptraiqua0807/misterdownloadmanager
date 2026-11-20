@@ -478,6 +478,8 @@ impl Default for Progress {
             helper: None,
             merging: None,
             merge_failed: None,
+            recorded: 0,
+            recording: false,
         }
     }
 }
